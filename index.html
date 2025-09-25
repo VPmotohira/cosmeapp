@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スキンケアマニュアル</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app-container">
+        <header>
+            <h1 id="header-title">今日のスキンケア</h1>
+            <p id="current-date"></p>
+        </header>
+
+        <nav>
+            <button data-screen="main" class="active">ホーム</button>
+            <button data-screen="schedule">スケジュール</button>
+            <button data-screen="inventory">コスメ一覧</button>
+            <button data-screen="routines">ルーティン</button>
+            <button data-screen="account">アカウント</button>
+        </nav>
+
+        <div id="main-screen" class="screen active"></div>
+        <div id="schedule-screen" class="screen"></div>
+        <div id="inventory-screen" class="screen"></div>
+        <div id="routines-screen" class="screen"></div>
+        <div id="account-screen" class="screen"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
