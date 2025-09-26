@@ -21,11 +21,67 @@ button:hover { transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,0,0,0.1
 button.primary-action { background-color: var(--primary-color); color: white; font-weight: bold; border: none; }
 button.primary-action:hover { background-color: #D98FA0; }
 .radio-buttons button.selected { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
-.task-item.completed { opacity: 0.5; background-color: #f9f9f9; }
-.task-item.completed .item-name { text-decoration: line-through; color: var(--secondary-color); }
 
-/* ★★★★★ 修正点 ★★★★★ */
-/* ホーム画面のアイテムカテゴリ・使用日数のスタイルを追加 */
+/* ★★★★★ ここからが今回の修正箇所 ★★★★★ */
+.task-list {
+    list-style: none;
+    padding: 0;
+}
+.task-item {
+    display: flex; /* Flexboxで要素を横並びに */
+    align-items: center; /* 上下中央揃え */
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: var(--card-background);
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    transition: all 0.3s ease;
+}
+.task-item.completed {
+    opacity: 0.6;
+    background-color: #fcfcfc;
+    box-shadow: none;
+}
+.task-item.completed .item-name {
+    text-decoration: line-through;
+    color: var(--secondary-color);
+}
+.item-image-placeholder {
+    width: 50px;
+    height: 50px;
+    background-color: var(--light-gray);
+    border-radius: 8px; /* カード内の要素も角丸に */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8em;
+    color: var(--secondary-color);
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+.task-checkbox {
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--light-gray);
+    border-radius: 50%;
+    margin-right: 15px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    flex-shrink: 0;
+}
+.task-checkbox:checked { background-color: var(--success-color); border-color: var(--success-color); }
+.task-checkbox:checked::after { content: '✔'; color: white; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; }
+.task-details {
+    flex-grow: 1; /* テキスト部分が残りのスペースを埋める */
+}
+.item-name {
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--text-color);
+}
 .item-category, .item-days {
     font-size: 0.85em;
     color: var(--secondary-color);
@@ -33,11 +89,13 @@ button.primary-action:hover { background-color: #D98FA0; }
 .item-category {
     font-weight: 500;
 }
+.details-btn {
+    margin-left: 15px; /* テキストとボタンの間にスペース */
+    padding: 6px 12px;
+    font-size: 0.8em;
+}
 /* ★★★★★ ここまで ★★★★★ */
 
-.task-checkbox { appearance: none; width: 22px; height: 22px; border: 2px solid var(--light-gray); border-radius: 50%; margin-right: 15px; cursor: pointer; transition: all 0.2s ease; position: relative; }
-.task-checkbox:checked { background-color: var(--success-color); border-color: var(--success-color); }
-.task-checkbox:checked::after { content: '✔'; color: white; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; }
 .wont-use-btn.active { background-color: var(--secondary-color); color: white; border-color: var(--secondary-color); }
 .running-low-btn.active { background-color: var(--warning-color); color: var(--text-color); border-color: var(--warning-color); }
 .buy-button { background-color: var(--success-color); border: none; }
@@ -46,7 +104,6 @@ button.primary-action:hover { background-color: #D98FA0; }
 #inventory-list .category-title { font-size: 1.1em; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid var(--primary-color); }
 .inventory-item { display: flex; gap: 15px; padding: 15px; border: 1px solid var(--light-gray); border-radius: var(--border-radius); margin-bottom: 10px; }
 .inventory-item.wont-use-item { opacity: 0.5; }
-.item-image-placeholder { width: 50px; height: 50px; background-color: var(--light-gray); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: var(--secondary-color); margin-right: 15px; flex-shrink: 0; }
 .item-usage-info { font-size: 0.8em; color: var(--secondary-color); margin: 5px 0; }
 .item-actions-footer { display: flex; gap: 5px; margin-top: 10px; }
 .item-actions-footer button { font-size: 0.8em; padding: 6px 10px; flex-grow: 1; }
