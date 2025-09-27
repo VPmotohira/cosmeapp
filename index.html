@@ -12,7 +12,7 @@
         :root {
             --primary-color: #E6A4B4; --secondary-color: #777777; --background-color: #FDF8F5;
             --card-background: #FFFFFF; --text-color: #333333; --light-gray: #F0F0F0;
-            --success-color: #5D9C59; --warning-color: #F7D060; --danger-color: #DF2E38;
+            --success-color: #5D9C59; --warning-color: #F7B84B; --danger-color: #DF2E38;
             --border-radius: 12px; --box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             --heading-font: 'Playfair Display', serif; --body-font: 'Noto Sans JP', sans-serif;
         }
@@ -27,32 +27,34 @@
         nav button.active { color: var(--primary-color); }
         button { border: 1px solid #ddd; background-color: #f8f9fa; padding: 12px 18px; border-radius: var(--border-radius); cursor: pointer; font-size: 0.9em; font-weight: 500; transition: all 0.2s ease-out; }
         button:hover { transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        button.primary-action { background-color: var(--primary-color); color: white; font-weight: bold; border: none; }
         .screen { display: none; }
         .screen.active { display: block; }
-
-        /* 状態選択チップ */
-        .condition-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 15px; background-color: var(--card-background); border-radius: var(--border-radius); box-shadow: var(--box-shadow); }
+        .condition-chips { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; padding: 20px; background-color: var(--card-background); border-radius: var(--border-radius); box-shadow: var(--box-shadow); }
         .chip-group { display: flex; align-items: center; gap: 8px; }
-        .chip-group label { font-size: 0.9em; font-weight: 500; color: var(--secondary-color); }
-        .chip-group .chips { display: flex; }
-        .chip-group button { font-size: 0.8em; padding: 6px 12px; border-radius: 20px; background-color: var(--light-gray); color: var(--secondary-color); border: 1px solid transparent; }
-        .chip-group button.selected { background-color: var(--primary-color); color: white; border-color: var(--primary-color); font-weight: bold; }
-        
-        /* タスクアイテム */
-        .task-item { display: flex; align-items: center; padding: 15px; margin-bottom: 15px; background-color: var(--card-background); border: 1px solid var(--light-gray); border-radius: var(--border-radius); box-shadow: var(--box-shadow); transition: all 0.3s ease; }
+        .chip-group label { font-size: 0.9em; font-weight: 500; color: var(--secondary-color); min-width: 40px; }
+        .chips { display: flex; background-color: var(--light-gray); border-radius: 20px; padding: 4px; }
+        .chips button { font-size: 0.8em; padding: 6px 14px; border-radius: 20px; color: var(--secondary-color); border: none; background-color: transparent; box-shadow: none; }
+        .chips button.selected { background-color: var(--primary-color); color: white; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .task-item { display: flex; align-items: center; padding: 12px; margin-bottom: 12px; background-color: var(--card-background); border-radius: var(--border-radius); transition: all 0.3s ease; border: 1px solid var(--light-gray); }
         .task-item.completed { opacity: 0.6; }
-        .item-image-placeholder { width: 50px; height: 50px; background-color: var(--light-gray); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: var(--secondary-color); margin-right: 15px; flex-shrink: 0; }
         .task-checkbox { appearance: none; width: 24px; height: 24px; border: 2px solid var(--light-gray); border-radius: 50%; margin-right: 15px; cursor: pointer; transition: all 0.2s ease; position: relative; flex-shrink: 0; }
         .task-checkbox:checked { background-color: var(--success-color); border-color: var(--success-color); }
         .task-checkbox:checked::after { content: '✔'; color: white; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; }
-        .reason-badge { font-size: 0.7em; background-color: var(--light-gray); color: var(--secondary-color); padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-block; }
+        .reason-badge { font-size: 0.7em; padding: 3px 8px; border-radius: 10px; margin-top: 4px; display: inline-block; font-weight: 500; }
+        .reason-badge.info { background-color: #e0e7ff; color: #4338ca; }
+        .reason-badge.warning { background-color: #fffbeb; color: #b45309; }
+        .recipe-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .line-chart-container { width: 100%; height: 180px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .modal-overlay.visible { opacity: 1; pointer-events: auto; }
+        .modal-content { background: white; padding: 25px; border-radius: var(--border-radius); width: 90%; max-width: 400px; transform: scale(0.95); transition: transform 0.3s ease; }
+        .modal-overlay.visible .modal-content { transform: scale(1); }
     </style>
 </head>
 <body>
     <div id="app-container">
         <header>
-            <h1 id="header-title">今日のスキンケア</h1>
+            <h1 id="header-title">今日のレシピ</h1>
             <p id="current-date"></p>
         </header>
         <main>
@@ -63,32 +65,33 @@
             <div id="account-screen" class="screen"></div>
         </main>
         <nav>
-            <button data-screen="main" class="active"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"></path></svg>ホーム</button>
+             <button data-screen="main" class="active"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>ホーム</button>
             <button data-screen="schedule"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>スケジュール</button>
             <button data-screen="inventory"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>コスメ</button>
             <button data-screen="diary"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v11.494m-5.22-6.22l-2.08 2.08a1.5 1.5 0 000 2.12l5.22 5.22a1.5 1.5 0 002.12 0l5.22-5.22a1.5 1.5 0 000-2.12l-2.08-2.08M12 6.253V3.75m0 2.5l5.22-5.22a1.5 1.5 0 00-2.12-2.12L12 3.75l-5.22-5.22a1.5 1.5 0 00-2.12 2.12L12 6.253z"></path></svg>ダイアリー</button>
             <button data-screen="account"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>アカウント</button>
         </nav>
+        <div id="modal-container"></div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // --- 1. データ定義 ---
             const masterInventory = [
-                { id: 'item1', category: 'クレンジング', name: 'シュウ ウエムラ', image: 'https://placehold.co/100x100/A67B5B/FFFFFF?text=S', reason: { makeup: '💄 メイクありのため' } },
+                { id: 'item1', category: 'クレンジング', name: 'シュウ ウエムラ', image: 'https://placehold.co/100x100/A67B5B/FFFFFF?text=S', reason: { type: 'info', text: '💄 メイクありのため' } },
                 { id: 'item2', category: '洗顔', name: 'B.A ウォッシュ N', image: 'https://placehold.co/100x100/1A1A1A/FFFFFF?text=B.A' },
-                { id: 'item3', category: '酵素洗顔', name: 'スイサイ', image: 'https://placehold.co/100x100/63C3C3/FFFFFF?text=SU', reason: { skin: '✨ 肌を整えたいとき' } },
+                { id: 'item3', category: '酵素洗顔', name: 'スイサイ', image: 'https://placehold.co/100x100/63C3C3/FFFFFF?text=SU', schedule: { type: 'weekly', days: [2, 5] }, reason: { type: 'warning', text: '⚠️ 肌荒れ時はOFF' } },
                 { id: 'item4', category: '化粧水', name: 'オルビスユー', image: 'https://placehold.co/100x100/368CCB/FFFFFF?text=O' },
-                { id: 'item5', category: '美容液', name: 'ランコム ジェニフィック', image: 'https://placehold.co/100x100/2D2D2D/FFFFFF?text=L', reason: { skin: '🛡️ 肌荒れケア' } },
+                { id: 'item5', category: '美容液', name: 'ランコム ジェニフィック', image: 'https://placehold.co/100x100/2D2D2D/FFFFFF?text=L', reason: { type: 'info', text: '🛡️ 肌荒れケア' } },
                 { id: 'item6', category: '乳液', name: 'SK-II スキンパワー', image: 'https://placehold.co/100x100/C9002B/FFFFFF?text=SK' },
-                { id: 'item7', category: '日焼け止め', name: 'アネッサ', image: 'https://placehold.co/100x100/F2BE22/FFFFFF?text=AN', reason: { outing: '☀️ 外出ありのため' } },
+                { id: 'item7', category: '日焼け止め', name: 'アネッサ', image: 'https://placehold.co/100x100/F2BE22/FFFFFF?text=AN', reason: { type: 'info', text: '☀️ 外出ありのため' } },
             ];
-            // ... 他のデータ ...
-
+            const pastRecipes = [{ date: '2025年9月27日 (土)', mode: '「静かな湖」', comment: '自分を甘やかす日！', routine: '夜のお手入れ 🌙', items: ['item1', 'item2', 'item4', 'item6'] }];
+            
             // --- 2. 状態管理 ---
             const state = {
                 currentScreen: 'main',
-                dailyConditions: JSON.parse(localStorage.getItem('dailyConditions')) || { skin: 'normal', makeup: 'no', outing: 'no' },
+                dailyConditions: JSON.parse(localStorage.getItem('dailyConditions')) || { skin: 'normal', makeup: 'no', outing: 'no', details: [] },
             };
 
             // --- 3. DOM要素 ---
@@ -96,11 +99,8 @@
                 headerTitle: document.getElementById('header-title'),
                 dateElement: document.getElementById('current-date'),
                 nav: document.querySelector('nav'),
-                mainScreen: document.getElementById('main-screen'),
-                scheduleScreen: document.getElementById('schedule-screen'),
-                inventoryScreen: document.getElementById('inventory-screen'),
-                diaryScreen: document.getElementById('diary-screen'),
-                accountScreen: document.getElementById('account-screen'),
+                main: document.querySelector('main'),
+                modalContainer: document.getElementById('modal-container'),
             };
 
             // --- 4. 初期化 ---
@@ -115,128 +115,171 @@
 
             // --- 5. 画面管理（ルーター） ---
             function renderCurrentScreen() {
-                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-                document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-                const activeScreen = document.getElementById(`${state.currentScreen}-screen`);
+                dom.main.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                dom.nav.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                
+                let activeScreen = document.getElementById(`${state.currentScreen}-screen`);
+                if (!activeScreen) {
+                    activeScreen = document.createElement('div');
+                    activeScreen.id = `${state.currentScreen}-screen`;
+                    activeScreen.className = 'screen';
+                    dom.main.appendChild(activeScreen);
+                }
+                
                 const activeButton = document.querySelector(`nav button[data-screen="${state.currentScreen}"]`);
                 activeScreen.classList.add('active');
                 activeButton.classList.add('active');
-                dom.headerTitle.textContent = { main: '今日のレシピ', schedule: 'スケジュール', inventory: 'コスメ一覧', diary: 'レシピダイアリー', account: 'アカウント情報' }[state.currentScreen];
+                
+                dom.headerTitle.textContent = { main: '今日のレシピ', schedule: 'スケジュール', inventory: 'コスメ一覧', diary: 'ダイアリー', account: 'アカウント' }[state.currentScreen];
                 const renderFunction = { main: renderMainScreen, schedule: renderScheduleScreen, inventory: renderInventoryScreen, diary: renderDiaryScreen, account: renderAccountScreen }[state.currentScreen];
-                renderFunction();
+                renderFunction(activeScreen);
             }
 
             // --- 6. 各画面の描画関数 ---
-            function renderMainScreen() {
-                dom.mainScreen.innerHTML = `
+            function renderMainScreen(container) {
+                container.innerHTML = `
                     <div class="condition-chips">
-                        <div class="chip-group"><label>肌:</label><div class="chips" data-group="skin"><button data-value="bad">荒れ</button><button data-value="normal">普通</button><button data-value="good">良い</button></div></div>
+                        <div class="chip-group"><label>肌:</label><div class="chips" data-group="skin"><button data-value="bad">荒れ</button><button data-value="normal">普通</button><button data-value="good">良い</button></div><button id="detail-skin-btn" class="text-xs p-1 ml-1 rounded-full bg-gray-200 w-6 h-6">+</button></div>
                         <div class="chip-group"><label>メイク:</label><div class="chips" data-group="makeup"><button data-value="yes">あり</button><button data-value="no">なし</button></div></div>
                         <div class="chip-group"><label>外出:</label><div class="chips" data-group="outing"><button data-value="yes">あり</button><button data-value="no">なし</button></div></div>
                     </div>
-                    <p class="text-center text-sm text-gray-500 mb-4">今日は刺激をさけるプランです</p>
+                    <div id="recalculating-feedback" class="text-center text-sm text-gray-500 mb-4 h-5"></div>
                     <div id="manual-container"></div>
-                    <button class="w-full mt-4">昨日と同じお手入れを記録</button>
                 `;
                 
-                dom.mainScreen.querySelectorAll('.chips').forEach(div => {
+                container.querySelectorAll('.chips').forEach(div => {
                     div.addEventListener('click', (e) => {
                         if (e.target.tagName === 'BUTTON') {
                             state.dailyConditions[e.currentTarget.dataset.group] = e.target.dataset.value;
                             localStorage.setItem('dailyConditions', JSON.stringify(state.dailyConditions));
-                            renderCurrentScreen(); // 状態が変わったので画面全体を再描画
+                            updateConditionUI();
+                            showRecalculatingFeedbackAndRender();
                         }
                     });
                 });
+                container.querySelector('#detail-skin-btn').addEventListener('click', showDetailSkinModal);
                 updateConditionUI();
                 renderManual();
             }
+
+            function renderInventoryScreen(container) {
+                 const itemsHTML = masterInventory.map(item => `<div class="text-center"><img src="${item.image}" alt="${item.name}" class="w-24 h-24 rounded-lg mx-auto shadow-md mb-2 border-2 border-white"><p class="font-bold text-sm">${item.name}</p><p class="text-xs text-gray-500">${item.category}</p></div>`).join('');
+                container.innerHTML = `<div class="card"><h2>マイコスメ</h2><div class="grid grid-cols-3 sm:grid-cols-4 gap-4 mt-4">${itemsHTML}</div></div>`;
+            }
             
-            // ... (他の画面描画関数は変更なし) ...
+            function renderDiaryScreen(container) {
+                const diaryHTML = pastRecipes.map(recipe => {
+                    const itemImages = recipe.items.map(itemId => `<img src="${masterInventory.find(i => i.id === itemId).image}" class="w-10 h-10 rounded-full object-cover border-2 border-white -ml-2 first:ml-0">`).join('');
+                    return `<div class="bg-white rounded-2xl shadow-lg p-5 mb-6"><p class="text-sm font-semibold text-gray-400 mb-2">${recipe.date}</p><h3 class="text-xl font-bold mb-3">肌モード: ${recipe.mode}</h3>${recipe.comment ? `<div class="p-3 bg-pink-50 rounded-lg text-center mb-4"><p class="font-semibold" style="font-family: var(--handwriting-font); font-size: 1.2rem; color: #B48484;">"${recipe.comment}"</p></div>` : ''}<div class="border-t border-gray-100 pt-3"><p class="text-xs font-bold text-gray-400 mb-2">${recipe.routine}</p><div class="flex items-center pl-2">${itemImages}</div></div></div>`;
+                }).join('');
+                container.innerHTML = `<div class="space-y-6">${diaryHTML}</div>`;
+            }
+
+            function renderScheduleScreen(container) { container.innerHTML = `<div class="card"><h2>スケジュール</h2><p>開発中です。</p></div>`; }
+            function renderAccountScreen(container) { container.innerHTML = `<div class="card"><h2>アカウント</h2><p>開発中です。</p></div>`; }
 
             // --- 7. コンポーネント描画 ---
             function renderManual() {
-                const container = dom.mainScreen.querySelector('#manual-container');
+                const container = document.getElementById('manual-container');
                 if (!container) return;
                 const morningItems = getRoutineItemsFor('morning');
                 const eveningItems = getRoutineItemsFor('evening');
-                container.innerHTML = createRoutineSectionHTML('☀️ 朝のレシピ', morningItems) + createRoutineSectionHTML('🌙 夜のレシピ', eveningItems);
+                container.innerHTML = createRoutineSectionHTML('☀️ 朝のレシピ', morningItems, 'morning') + createRoutineSectionHTML('🌙 夜のレシピ', eveningItems, 'evening');
             }
 
             // --- 8. HTML生成ヘルパー ---
-            function createRoutineSectionHTML(title, items) {
+            function createRoutineSectionHTML(title, items, time) {
                 if (items.length === 0) return '';
                 const itemsHTML = items.map(item => createTaskItemHTML(item)).join('');
-                return `<div class="card p-4 mb-4"><h3 class="font-bold text-lg mb-3">${title}</h3>${itemsHTML}</div>`;
+                return `<div class="card p-4 mb-4"><div class="recipe-header"><h3 class="font-bold text-lg">${title}</h3><div class="text-xs text-gray-400">昨日 + 美容液</div></div><p class="text-sm text-gray-500 mb-4">${items.length} ステップ</p>${itemsHTML}<button class="w-full mt-2 text-sm">一括完了</button></div>`;
             }
             function createTaskItemHTML(item) {
                 let reasonHTML = '';
-                if(item.reason){
-                    if(state.dailyConditions.skin === 'bad' && item.reason.skin) reasonHTML = `<div class="reason-badge">${item.reason.skin}</div>`;
-                    if(state.dailyConditions.makeup === 'yes' && item.reason.makeup) reasonHTML = `<div class="reason-badge">${item.reason.makeup}</div>`;
-                    if(state.dailyConditions.outing === 'yes' && item.reason.outing) reasonHTML = `<div class="reason-badge">${item.reason.outing}</div>`;
+                if (item.reason) {
+                     if ((state.dailyConditions.makeup === 'yes' && item.reason.text.includes('メイク')) || (state.dailyConditions.outing === 'yes' && item.reason.text.includes('外出'))) {
+                        reasonHTML = `<div class="reason-badge info">${item.reason.text}</div>`;
+                    } else if (state.dailyConditions.skin === 'bad' && item.reason.text.includes('肌荒れ')) {
+                         reasonHTML = `<div class="reason-badge info">${item.reason.text}</div>`;
+                    } else if (item.reason.type === 'warning' && state.dailyConditions.skin !== 'bad') {
+                        // Show warning only if skin is not bad
+                    } else if (item.reason.type === 'warning' && state.dailyConditions.skin === 'bad'){
+                         reasonHTML = `<div class="reason-badge warning">${item.reason.text}</div>`;
+                    }
                 }
-
-                return `
-                    <div class="task-item">
-                        <input type="checkbox" class="task-checkbox">
-                        <img src="${item.image}" alt="${item.name}" class="item-image-placeholder rounded-lg">
-                        <div class="flex-grow">
-                            <p class="font-bold text-sm">${item.name}</p>
-                            <p class="text-xs text-gray-500">${item.category}</p>
-                            ${reasonHTML}
-                        </div>
-                    </div>`;
+                return `<div class="task-item"><input type="checkbox" class="task-checkbox"><img src="${item.image}" alt="${item.name}" class="w-12 h-12 rounded-lg"><div class="flex-grow ml-4"><p class="font-bold text-sm">${item.name}</p><p class="text-xs text-gray-500">${item.category}</p>${reasonHTML}</div></div>`;
             }
 
             // --- 9. 状態更新 & UI反映 ---
             function updateConditionUI() {
-                dom.mainScreen.querySelectorAll('.chips').forEach(div => {
+                const container = document.getElementById('main-screen');
+                if (!container) return;
+                container.querySelectorAll('.chips').forEach(div => {
                     div.querySelectorAll('button').forEach(btn => {
                         btn.classList.toggle('selected', btn.dataset.value === state.dailyConditions[div.dataset.group]);
                     });
                 });
             }
+            
+            function showRecalculatingFeedbackAndRender() {
+                const feedbackEl = document.getElementById('recalculating-feedback');
+                if(!feedbackEl) return;
+                feedbackEl.textContent = 'レシピを再計算中...';
+                setTimeout(() => {
+                    feedbackEl.textContent = '';
+                    renderManual();
+                }, 300);
+            }
 
+            function showDetailSkinModal() {
+                const modalHTML = `
+                <div class="modal-overlay visible" id="skin-modal">
+                    <div class="modal-content">
+                        <h2 class="text-lg font-bold mb-4">肌の詳細を選択</h2>
+                        <div class="space-y-2">
+                            <label class="flex items-center"><input type="checkbox" value="dry" class="mr-2">乾燥</label>
+                            <label class="flex items-center"><input type="checkbox" value="sensitive" class="mr-2">敏感</label>
+                            <label class="flex items-center"><input type="checkbox" value="acne" class="mr-2">ニキビ</label>
+                        </div>
+                        <div class="mt-6 flex justify-end gap-3">
+                            <button id="modal-cancel">キャンセル</button>
+                            <button id="modal-save" class="primary-action bg-primary-color">保存</button>
+                        </div>
+                    </div>
+                </div>`;
+                dom.modalContainer.innerHTML = modalHTML;
+                dom.modalContainer.querySelector('#modal-cancel').addEventListener('click', () => dom.modalContainer.innerHTML = '');
+                dom.modalContainer.querySelector('#modal-save').addEventListener('click', () => {
+                    // Save logic here
+                    dom.modalContainer.innerHTML = '';
+                });
+            }
+            
             // --- 10. アルゴリズムロジック ---
             function getRoutineItemsFor(time) {
                 let items = [];
+                const { skin, makeup, outing } = state.dailyConditions;
+
                 if (time === 'morning') {
                     items.push(masterInventory.find(i => i.id === 'item2')); // 洗顔
                     items.push(masterInventory.find(i => i.id === 'item4')); // 化粧水
-                    if (state.dailyConditions.skin === 'bad') {
-                        items.push(masterInventory.find(i => i.id === 'item5')); // 美容液
-                    }
+                    if (skin === 'bad') items.push(masterInventory.find(i => i.id === 'item5')); // 美容液
                     items.push(masterInventory.find(i => i.id === 'item6')); // 乳液
-                    if (state.dailyConditions.outing === 'yes') {
-                        items.push(masterInventory.find(i => i.id === 'item7')); // 日焼け止め
-                    }
+                    if (outing === 'yes') items.push(masterInventory.find(i => i.id === 'item7')); // 日焼け止め
                 } else { // evening
-                    if (state.dailyConditions.makeup === 'yes') {
-                        items.push(masterInventory.find(i => i.id === 'item1')); // クレンジング
-                    }
-                    items.push(masterInventory.find(i => i.id === 'item2')); // 洗顔
-                    items.push(masterInventory.find(i => i.id === 'item4')); // 化粧水
-                    if (state.dailyConditions.skin === 'bad') {
-                        items.push(masterInventory.find(i => i.id === 'item5')); // 美容液
-                    }
-                    items.push(masterInventory.find(i => i.id === 'item6')); // 乳液
+                    if (makeup === 'yes') items.push(masterInventory.find(i => i.id === 'item1'));
+                    if (skin !== 'bad') items.push(masterInventory.find(i => i.id === 'item3')); // 酵素洗顔 (肌荒れ時以外)
+                    else items.push(masterInventory.find(i => i.id === 'item2')); // 通常洗顔
+                    items.push(masterInventory.find(i => i.id === 'item4'));
+                    if (skin === 'bad') items.push(masterInventory.find(i => i.id === 'item5'));
+                    items.push(masterInventory.find(i => i.id === 'item6'));
                 }
-                return items.filter(Boolean); // nullを除外
+                return items.filter(Boolean);
             }
             
-            // --- ヘルパー関数 ---
             function displayDate() {
                 const today = new Date();
                 dom.dateElement.textContent = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
             }
-            
-            // --- 他の画面のダミー描画関数 ---
-            function renderScheduleScreen() { dom.scheduleScreen.innerHTML = `<div class="card"><h2>スケジュール</h2><p>開発中です。</p></div>`; }
-            function renderInventoryScreen() { dom.inventoryScreen.innerHTML = `<div class="card"><h2>コスメ一覧</h2><p>開発中です。</p></div>`; }
-            function renderDiaryScreen() { dom.diaryScreen.innerHTML = `<div class="card"><h2>レシピダイアリー</h2><p>開発中です。</p></div>`; }
-            function renderAccountScreen() { dom.accountScreen.innerHTML = `<div class="card"><h2>アカウント情報</h2><p>開発中です。</p></div>`; }
-
             initialize();
         });
     </script>
