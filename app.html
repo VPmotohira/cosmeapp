@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>美肌ロジック</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Playfair+Display:wght@500;600&family=Caveat&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #E6A4B4;
+            --secondary-color: #777777;
+            --background-color: #FDF8F5;
+            --card-background: #FFFFFF;
+            --text-color: #333333;
+            --light-gray: #F0F0F0;
+            --success-color: #5D9C59;
+            --warning-color: #F7D060;
+            --danger-color: #DF2E38;
+            --border-radius: 12px;
+            --box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            --heading-font: 'Playfair Display', serif;
+            --body-font: 'Noto Sans JP', sans-serif;
+            --handwriting-font: 'Caveat', cursive;
+        }
+        body { font-family: var(--body-font); background-color: var(--background-color); color: var(--text-color); margin: 0; padding: 20px 20px 100px 20px; }
+        #app-container { max-width: 600px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 30px; }
+        header h1 { font-family: var(--heading-font); font-weight: 500; color: var(--primary-color); }
+        .card { background-color: var(--card-background); border-radius: var(--border-radius); padding: 25px; margin-bottom: 25px; box-shadow: var(--box-shadow); border: 1px solid var(--light-gray); }
+        h2 { font-family: var(--heading-font); font-weight: 500; margin-top: 0; margin-bottom: 20px; font-size: 1.3em; border-bottom: 1px solid var(--light-gray); padding-bottom: 15px; }
+        nav { position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; display: flex; justify-content: space-around; background-color: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); box-shadow: 0 -2px 10px rgba(0,0,0,0.05); border-top: 1px solid var(--light-gray); padding: 10px 0; z-index: 100; }
+        nav button { flex: 1; border: none; background-color: transparent; cursor: pointer; font-size: 0.8em; font-weight: 500; color: var(--secondary-color); border-radius: var(--border-radius); transition: all 0.3s ease; padding: 8px 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        nav button.active { color: var(--primary-color); }
+        button { border: 1px solid #ddd; background-color: #f8f9fa; padding: 12px 18px; border-radius: var(--border-radius); cursor: pointer; font-size: 0.9em; font-weight: 500; transition: all 0.2s ease-out; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        button.primary-action { background-color: var(--primary-color); color: white; font-weight: bold; border: none; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        .task-item { display: flex; align-items: center; padding: 15px; margin-bottom: 15px; background-color: var(--card-background); border: 1px solid var(--light-gray); border-radius: var(--border-radius); box-shadow: var(--box-shadow); transition: all 0.3s ease; }
+        .task-item.completed { opacity: 0.6; background-color: #fcfcfc; box-shadow: none; }
+        .item-image-placeholder { width: 50px; height: 50px; background-color: var(--light-gray); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: var(--secondary-color); margin-right: 15px; flex-shrink: 0; }
+        .task-checkbox { appearance: none; width: 24px; height: 24px; border: 2px solid var(--light-gray); border-radius: 50%; margin-right: 15px; cursor: pointer; transition: all 0.2s ease; position: relative; flex-shrink: 0; }
+        .task-checkbox:checked { background-color: var(--success-color); border-color: var(--success-color); }
+        .task-checkbox:checked::after { content: '✔'; color: white; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; }
+        .line-chart-container { width: 100%; height: 180px; }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <header>
+            <h1 id="header-title">今日のスキンケア</h1>
+            <p id="current-date"></p>
+        </header>
+        <main>
+            <div id="main-screen" class="screen active"></div>
+            <div id="schedule-screen" class="screen"></div>
+            <div id="inventory-screen" class="screen"></div>
+            <div id="diary-screen" class="screen"></div>
+            <div id="account-screen" class="screen"></div>
+        </main>
+        <nav>
+            <button data-screen="main" class="active"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z"></path></svg>ホーム</button>
+            <button data-screen="schedule"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>スケジュール</button>
+            <button data-screen="inventory"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>コスメ</button>
+            <button data-screen="diary"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v11.494m-5.22-6.22l-2.08 2.08a1.5 1.5 0 000 2.12l5.22 5.22a1.5 1.5 0 002.12 0l5.22-5.22a1.5 1.5 0 000-2.12l-2.08-2.08M12 6.253V3.75m0 2.5l5.22-5.22a1.5 1.5 0 00-2.12-2.12L12 3.75l-5.22-5.22a1.5 1.5 0 00-2.12 2.12L12 6.253z"></path></svg>ダイアリー</button>
+            <button data-screen="account"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>アカウント</button>
+        </nav>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- 1. データ定義 ---
+            const masterInventory = [
+                { id: 'item1', category: 'クレンジング', name: 'シュウ ウエムラ', image: 'https://placehold.co/100x100/A67B5B/FFFFFF?text=S' },
+                { id: 'item2', category: '洗顔', name: 'B.A ウォッシュ N', image: 'https://placehold.co/100x100/1A1A1A/FFFFFF?text=B.A' },
+                { id: 'item3', category: '酵素洗顔', name: 'スイサイ', image: 'https://placehold.co/100x100/63C3C3/FFFFFF?text=SU', schedule: { type: 'weekly', days: [2, 5] } },
+                { id: 'item4', category: '化粧水', name: 'オルビスユー', image: 'https://placehold.co/100x100/368CCB/FFFFFF?text=O' },
+                { id: 'item5', category: '美容液', name: 'ランコム ジェニフィック', image: 'https://placehold.co/100x100/2D2D2D/FFFFFF?text=L' },
+                { id: 'item6', category: '乳液', name: 'SK-II スキンパワー', image: 'https://placehold.co/100x100/C9002B/FFFFFF?text=SK' },
+                { id: 'item7', category: '日焼け止め', name: 'アネッサ', image: 'https://placehold.co/100x100/F2BE22/FFFFFF?text=AN' },
+            ];
+            const pastRecipes = [
+                { date: '2025年9月27日 (土)', mode: '「静かな湖」', comment: '今日は自分を甘やかす日！', routine: '夜のお手入れ 🌙', items: ['item1', 'item2', 'item4', 'item6'] },
+                { date: '2025年9月26日 (金)', mode: '「快晴の空」', comment: null, routine: '朝のお手入れ ☀️', items: ['item2', 'item4', 'item7'] },
+                { date: '2025年9月25日 (木)', mode: '「繊細なレース」', comment: '酵素洗顔でつるつるになった日', routine: '夜のスペシャルケア ✨', items: ['item1', 'item3', 'item4', 'item6'] },
+            ];
+            const skinModes = ['静かな湖', '快晴の空', '繊細なレース', '午後の陽だまり', '澄んだ泉'];
+
+            // --- 2. 状態管理 ---
+            const state = {
+                currentScreen: 'main',
+                dailyConditions: { skin: 'normal', makeup: 'no', outing: 'no' },
+                todaySkinMode: skinModes[Math.floor(Math.random() * skinModes.length)],
+            };
+
+            // --- 3. DOM要素 ---
+            const dom = {
+                headerTitle: document.getElementById('header-title'),
+                dateElement: document.getElementById('current-date'),
+                nav: document.querySelector('nav'),
+                mainScreen: document.getElementById('main-screen'),
+                scheduleScreen: document.getElementById('schedule-screen'),
+                inventoryScreen: document.getElementById('inventory-screen'),
+                diaryScreen: document.getElementById('diary-screen'),
+                accountScreen: document.getElementById('account-screen'),
+            };
+
+            // --- 4. 初期化 ---
+            function initialize() {
+                displayDate();
+                dom.nav.addEventListener('click', (e) => {
+                    const button = e.target.closest('button');
+                    if (button) {
+                        state.currentScreen = button.dataset.screen;
+                        renderCurrentScreen();
+                    }
+                });
+                renderCurrentScreen();
+            }
+
+            // --- 5. 画面管理（ルーター） ---
+            function renderCurrentScreen() {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+                
+                const activeScreen = document.getElementById(`${state.currentScreen}-screen`);
+                const activeButton = document.querySelector(`nav button[data-screen="${state.currentScreen}"]`);
+                
+                activeScreen.classList.add('active');
+                activeButton.classList.add('active');
+                
+                dom.headerTitle.textContent = { main: '今日のスキンケア', schedule: 'スケジュール', inventory: 'コスメ一覧', diary: 'レシピダイアリー', account: 'アカウント情報' }[state.currentScreen];
+
+                const renderFunction = {
+                    main: renderMainScreen,
+                    schedule: renderScheduleScreen,
+                    inventory: renderInventoryScreen,
+                    diary: renderDiaryScreen,
+                    account: renderAccountScreen,
+                }[state.currentScreen];
+                renderFunction();
+            }
+
+            // --- 6. 各画面の描画関数 ---
+            function renderMainScreen() {
+                dom.mainScreen.innerHTML = `
+                    <div class="card text-center">
+                        <p class="text-gray-500">今日のあなたの肌は...</p>
+                        <h2 class="text-3xl" style="border:none; padding-bottom:0;">「${state.todaySkinMode}」モード</h2>
+                    </div>
+                    <div class="card">
+                         <div id="manual-container"></div>
+                    </div>
+                    <div class="card text-center">
+                        <p class="text-sm text-gray-500 mb-2">📊 同じ肌状態のユーザーの82%が、保湿系美容液を追加しています</p>
+                        <button class="primary-action">レシピをシェアする</button>
+                    </div>`;
+                renderManual();
+            }
+
+            function renderScheduleScreen() {
+                dom.scheduleScreen.innerHTML = `<div class="card"><h2>肌コンディション履歴</h2><div class="line-chart-container"></div></div><div class="card"><h2>カレンダー</h2><p>開発中です。</p></div>`;
+            }
+
+            function renderInventoryScreen() {
+                const itemsHTML = masterInventory.map(item => `
+                    <div class="text-center">
+                        <img src="${item.image}" alt="${item.name}" class="w-24 h-24 rounded-full mx-auto shadow-md mb-2 border-2 border-white">
+                        <p class="font-bold text-sm">${item.name}</p>
+                        <p class="text-xs text-gray-500">${item.category}</p>
+                    </div>
+                `).join('');
+                dom.inventoryScreen.innerHTML = `<div class="card"><h2>マイコスメ</h2><div class="grid grid-cols-3 gap-4 mt-4">${itemsHTML}</div></div>`;
+            }
+
+            function renderDiaryScreen() {
+                const diaryHTML = pastRecipes.map(recipe => {
+                    const itemImages = recipe.items.map(itemId => {
+                        const item = masterInventory.find(i => i.id === itemId);
+                        return `<img src="${item.image}" alt="${item.name}" class="w-10 h-10 rounded-full object-cover border-2 border-white -ml-2 first:ml-0">`;
+                    }).join('');
+
+                    return `
+                        <div class="bg-white rounded-2xl shadow-lg p-5 hover:shadow-xl transition-shadow duration-300">
+                            <p class="text-sm font-semibold text-gray-400 mb-2">${recipe.date}</p>
+                            <h3 class="text-xl font-bold mb-3">肌モード: ${recipe.mode}</h3>
+                            ${recipe.comment ? `<div class="p-3 bg-pink-50 rounded-lg text-center mb-4"><p class="font-semibold" style="font-family: var(--handwriting-font); font-size: 1.2rem; color: #B48484;">"${recipe.comment}"</p></div>` : ''}
+                            <div class="border-t border-gray-100 pt-3">
+                                <p class="text-xs font-bold text-gray-400 mb-2">${recipe.routine}</p>
+                                <div class="flex items-center pl-2">${itemImages}</div>
+                            </div>
+                        </div>`;
+                }).join('');
+                dom.diaryScreen.innerHTML = `<div class="space-y-6">${diaryHTML}</div>`;
+            }
+
+            function renderAccountScreen() {
+                dom.accountScreen.innerHTML = `<div class="card"><h2>アカウント情報</h2><p>開発中です。</p></div>`;
+            }
+
+            // --- 7. コンポーネント描画 ---
+            function renderManual() {
+                const container = dom.mainScreen.querySelector('#manual-container');
+                if (!container) return;
+
+                const items = ['item2', 'item4', 'item5', 'item6']; // Dummy routine for now
+                const itemsHTML = items.map(itemId => {
+                    const item = masterInventory.find(i => i.id === itemId);
+                    return `
+                        <div class="task-item">
+                            <input type="checkbox" class="task-checkbox">
+                            <img src="${item.image}" alt="${item.name}" class="item-image-placeholder rounded-lg">
+                            <div class="flex-grow">
+                                <p class="font-bold">${item.name}</p>
+                                <p class="text-sm text-gray-500">${item.category}</p>
+                            </div>
+                            <button class="text-sm text-gray-500">詳細</button>
+                        </div>`;
+                }).join('');
+                container.innerHTML = `<h3 class="font-bold text-xl mb-4">🌙 夜のお手入れ</h3><div class="space-y-3">${itemsHTML}</div>`;
+            }
+
+            // --- 8. ヘルパー関数 ---
+            function displayDate() {
+                const today = new Date();
+                dom.dateElement.textContent = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+            }
+
+            // --- アプリケーション開始 ---
+            initialize();
+        });
+    </script>
+</body>
+</html>
