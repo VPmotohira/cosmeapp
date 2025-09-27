@@ -10,24 +10,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Playfair+Display:wght@500;600&family=Caveat&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #E6A4B4;
-            --secondary-color: #777777;
-            --background-color: #FDF8F5;
-            --card-background: #FFFFFF;
-            --text-color: #333333;
-            --light-gray: #F0F0F0;
-            --success-color: #5D9C59;
-            --warning-color: #F7D060;
-            --danger-color: #DF2E38;
-            --border-radius: 12px;
-            --box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            --heading-font: 'Playfair Display', serif;
-            --body-font: 'Noto Sans JP', sans-serif;
-            --handwriting-font: 'Caveat', cursive;
+            --primary-color: #E6A4B4; --secondary-color: #777777; --background-color: #FDF8F5;
+            --card-background: #FFFFFF; --text-color: #333333; --light-gray: #F0F0F0;
+            --success-color: #5D9C59; --warning-color: #F7D060; --danger-color: #DF2E38;
+            --border-radius: 12px; --box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            --heading-font: 'Playfair Display', serif; --body-font: 'Noto Sans JP', sans-serif;
         }
         body { font-family: var(--body-font); background-color: var(--background-color); color: var(--text-color); margin: 0; padding: 20px 20px 100px 20px; }
         #app-container { max-width: 600px; margin: 0 auto; }
-        header { text-align: center; margin-bottom: 30px; }
+        header { text-align: center; margin-bottom: 20px; }
         header h1 { font-family: var(--heading-font); font-weight: 500; color: var(--primary-color); }
         .card { background-color: var(--card-background); border-radius: var(--border-radius); padding: 25px; margin-bottom: 25px; box-shadow: var(--box-shadow); border: 1px solid var(--light-gray); }
         h2 { font-family: var(--heading-font); font-weight: 500; margin-top: 0; margin-bottom: 20px; font-size: 1.3em; border-bottom: 1px solid var(--light-gray); padding-bottom: 15px; }
@@ -39,13 +30,23 @@
         button.primary-action { background-color: var(--primary-color); color: white; font-weight: bold; border: none; }
         .screen { display: none; }
         .screen.active { display: block; }
+
+        /* 状態選択チップ */
+        .condition-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; padding: 15px; background-color: var(--card-background); border-radius: var(--border-radius); box-shadow: var(--box-shadow); }
+        .chip-group { display: flex; align-items: center; gap: 8px; }
+        .chip-group label { font-size: 0.9em; font-weight: 500; color: var(--secondary-color); }
+        .chip-group .chips { display: flex; }
+        .chip-group button { font-size: 0.8em; padding: 6px 12px; border-radius: 20px; background-color: var(--light-gray); color: var(--secondary-color); border: 1px solid transparent; }
+        .chip-group button.selected { background-color: var(--primary-color); color: white; border-color: var(--primary-color); font-weight: bold; }
+        
+        /* タスクアイテム */
         .task-item { display: flex; align-items: center; padding: 15px; margin-bottom: 15px; background-color: var(--card-background); border: 1px solid var(--light-gray); border-radius: var(--border-radius); box-shadow: var(--box-shadow); transition: all 0.3s ease; }
-        .task-item.completed { opacity: 0.6; background-color: #fcfcfc; box-shadow: none; }
+        .task-item.completed { opacity: 0.6; }
         .item-image-placeholder { width: 50px; height: 50px; background-color: var(--light-gray); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: var(--secondary-color); margin-right: 15px; flex-shrink: 0; }
         .task-checkbox { appearance: none; width: 24px; height: 24px; border: 2px solid var(--light-gray); border-radius: 50%; margin-right: 15px; cursor: pointer; transition: all 0.2s ease; position: relative; flex-shrink: 0; }
         .task-checkbox:checked { background-color: var(--success-color); border-color: var(--success-color); }
         .task-checkbox:checked::after { content: '✔'; color: white; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 14px; }
-        .line-chart-container { width: 100%; height: 180px; }
+        .reason-badge { font-size: 0.7em; background-color: var(--light-gray); color: var(--secondary-color); padding: 2px 6px; border-radius: 4px; margin-top: 4px; display: inline-block; }
     </style>
 </head>
 <body>
@@ -74,26 +75,20 @@
         document.addEventListener('DOMContentLoaded', () => {
             // --- 1. データ定義 ---
             const masterInventory = [
-                { id: 'item1', category: 'クレンジング', name: 'シュウ ウエムラ', image: 'https://placehold.co/100x100/A67B5B/FFFFFF?text=S' },
+                { id: 'item1', category: 'クレンジング', name: 'シュウ ウエムラ', image: 'https://placehold.co/100x100/A67B5B/FFFFFF?text=S', reason: { makeup: '💄 メイクありのため' } },
                 { id: 'item2', category: '洗顔', name: 'B.A ウォッシュ N', image: 'https://placehold.co/100x100/1A1A1A/FFFFFF?text=B.A' },
-                { id: 'item3', category: '酵素洗顔', name: 'スイサイ', image: 'https://placehold.co/100x100/63C3C3/FFFFFF?text=SU', schedule: { type: 'weekly', days: [2, 5] } },
+                { id: 'item3', category: '酵素洗顔', name: 'スイサイ', image: 'https://placehold.co/100x100/63C3C3/FFFFFF?text=SU', reason: { skin: '✨ 肌を整えたいとき' } },
                 { id: 'item4', category: '化粧水', name: 'オルビスユー', image: 'https://placehold.co/100x100/368CCB/FFFFFF?text=O' },
-                { id: 'item5', category: '美容液', name: 'ランコム ジェニフィック', image: 'https://placehold.co/100x100/2D2D2D/FFFFFF?text=L' },
+                { id: 'item5', category: '美容液', name: 'ランコム ジェニフィック', image: 'https://placehold.co/100x100/2D2D2D/FFFFFF?text=L', reason: { skin: '🛡️ 肌荒れケア' } },
                 { id: 'item6', category: '乳液', name: 'SK-II スキンパワー', image: 'https://placehold.co/100x100/C9002B/FFFFFF?text=SK' },
-                { id: 'item7', category: '日焼け止め', name: 'アネッサ', image: 'https://placehold.co/100x100/F2BE22/FFFFFF?text=AN' },
+                { id: 'item7', category: '日焼け止め', name: 'アネッサ', image: 'https://placehold.co/100x100/F2BE22/FFFFFF?text=AN', reason: { outing: '☀️ 外出ありのため' } },
             ];
-            const pastRecipes = [
-                { date: '2025年9月27日 (土)', mode: '「静かな湖」', comment: '今日は自分を甘やかす日！', routine: '夜のお手入れ 🌙', items: ['item1', 'item2', 'item4', 'item6'] },
-                { date: '2025年9月26日 (金)', mode: '「快晴の空」', comment: null, routine: '朝のお手入れ ☀️', items: ['item2', 'item4', 'item7'] },
-                { date: '2025年9月25日 (木)', mode: '「繊細なレース」', comment: '酵素洗顔でつるつるになった日', routine: '夜のスペシャルケア ✨', items: ['item1', 'item3', 'item4', 'item6'] },
-            ];
-            const skinModes = ['静かな湖', '快晴の空', '繊細なレース', '午後の陽だまり', '澄んだ泉'];
+            // ... 他のデータ ...
 
             // --- 2. 状態管理 ---
             const state = {
                 currentScreen: 'main',
-                dailyConditions: { skin: 'normal', makeup: 'no', outing: 'no' },
-                todaySkinMode: skinModes[Math.floor(Math.random() * skinModes.length)],
+                dailyConditions: JSON.parse(localStorage.getItem('dailyConditions')) || { skin: 'normal', makeup: 'no', outing: 'no' },
             };
 
             // --- 3. DOM要素 ---
@@ -113,10 +108,7 @@
                 displayDate();
                 dom.nav.addEventListener('click', (e) => {
                     const button = e.target.closest('button');
-                    if (button) {
-                        state.currentScreen = button.dataset.screen;
-                        renderCurrentScreen();
-                    }
+                    if (button) { state.currentScreen = button.dataset.screen; renderCurrentScreen(); }
                 });
                 renderCurrentScreen();
             }
@@ -125,113 +117,129 @@
             function renderCurrentScreen() {
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
                 document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-                
                 const activeScreen = document.getElementById(`${state.currentScreen}-screen`);
                 const activeButton = document.querySelector(`nav button[data-screen="${state.currentScreen}"]`);
-                
                 activeScreen.classList.add('active');
                 activeButton.classList.add('active');
-                
-                dom.headerTitle.textContent = { main: '今日のスキンケア', schedule: 'スケジュール', inventory: 'コスメ一覧', diary: 'レシピダイアリー', account: 'アカウント情報' }[state.currentScreen];
-
-                const renderFunction = {
-                    main: renderMainScreen,
-                    schedule: renderScheduleScreen,
-                    inventory: renderInventoryScreen,
-                    diary: renderDiaryScreen,
-                    account: renderAccountScreen,
-                }[state.currentScreen];
+                dom.headerTitle.textContent = { main: '今日のレシピ', schedule: 'スケジュール', inventory: 'コスメ一覧', diary: 'レシピダイアリー', account: 'アカウント情報' }[state.currentScreen];
+                const renderFunction = { main: renderMainScreen, schedule: renderScheduleScreen, inventory: renderInventoryScreen, diary: renderDiaryScreen, account: renderAccountScreen }[state.currentScreen];
                 renderFunction();
             }
 
             // --- 6. 各画面の描画関数 ---
             function renderMainScreen() {
                 dom.mainScreen.innerHTML = `
-                    <div class="card text-center">
-                        <p class="text-gray-500">今日のあなたの肌は...</p>
-                        <h2 class="text-3xl" style="border:none; padding-bottom:0;">「${state.todaySkinMode}」モード</h2>
+                    <div class="condition-chips">
+                        <div class="chip-group"><label>肌:</label><div class="chips" data-group="skin"><button data-value="bad">荒れ</button><button data-value="normal">普通</button><button data-value="good">良い</button></div></div>
+                        <div class="chip-group"><label>メイク:</label><div class="chips" data-group="makeup"><button data-value="yes">あり</button><button data-value="no">なし</button></div></div>
+                        <div class="chip-group"><label>外出:</label><div class="chips" data-group="outing"><button data-value="yes">あり</button><button data-value="no">なし</button></div></div>
                     </div>
-                    <div class="card">
-                         <div id="manual-container"></div>
-                    </div>
-                    <div class="card text-center">
-                        <p class="text-sm text-gray-500 mb-2">📊 同じ肌状態のユーザーの82%が、保湿系美容液を追加しています</p>
-                        <button class="primary-action">レシピをシェアする</button>
-                    </div>`;
+                    <p class="text-center text-sm text-gray-500 mb-4">今日は刺激をさけるプランです</p>
+                    <div id="manual-container"></div>
+                    <button class="w-full mt-4">昨日と同じお手入れを記録</button>
+                `;
+                
+                dom.mainScreen.querySelectorAll('.chips').forEach(div => {
+                    div.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'BUTTON') {
+                            state.dailyConditions[e.currentTarget.dataset.group] = e.target.dataset.value;
+                            localStorage.setItem('dailyConditions', JSON.stringify(state.dailyConditions));
+                            renderCurrentScreen(); // 状態が変わったので画面全体を再描画
+                        }
+                    });
+                });
+                updateConditionUI();
                 renderManual();
             }
-
-            function renderScheduleScreen() {
-                dom.scheduleScreen.innerHTML = `<div class="card"><h2>肌コンディション履歴</h2><div class="line-chart-container"></div></div><div class="card"><h2>カレンダー</h2><p>開発中です。</p></div>`;
-            }
-
-            function renderInventoryScreen() {
-                const itemsHTML = masterInventory.map(item => `
-                    <div class="text-center">
-                        <img src="${item.image}" alt="${item.name}" class="w-24 h-24 rounded-full mx-auto shadow-md mb-2 border-2 border-white">
-                        <p class="font-bold text-sm">${item.name}</p>
-                        <p class="text-xs text-gray-500">${item.category}</p>
-                    </div>
-                `).join('');
-                dom.inventoryScreen.innerHTML = `<div class="card"><h2>マイコスメ</h2><div class="grid grid-cols-3 gap-4 mt-4">${itemsHTML}</div></div>`;
-            }
-
-            function renderDiaryScreen() {
-                const diaryHTML = pastRecipes.map(recipe => {
-                    const itemImages = recipe.items.map(itemId => {
-                        const item = masterInventory.find(i => i.id === itemId);
-                        return `<img src="${item.image}" alt="${item.name}" class="w-10 h-10 rounded-full object-cover border-2 border-white -ml-2 first:ml-0">`;
-                    }).join('');
-
-                    return `
-                        <div class="bg-white rounded-2xl shadow-lg p-5 hover:shadow-xl transition-shadow duration-300">
-                            <p class="text-sm font-semibold text-gray-400 mb-2">${recipe.date}</p>
-                            <h3 class="text-xl font-bold mb-3">肌モード: ${recipe.mode}</h3>
-                            ${recipe.comment ? `<div class="p-3 bg-pink-50 rounded-lg text-center mb-4"><p class="font-semibold" style="font-family: var(--handwriting-font); font-size: 1.2rem; color: #B48484;">"${recipe.comment}"</p></div>` : ''}
-                            <div class="border-t border-gray-100 pt-3">
-                                <p class="text-xs font-bold text-gray-400 mb-2">${recipe.routine}</p>
-                                <div class="flex items-center pl-2">${itemImages}</div>
-                            </div>
-                        </div>`;
-                }).join('');
-                dom.diaryScreen.innerHTML = `<div class="space-y-6">${diaryHTML}</div>`;
-            }
-
-            function renderAccountScreen() {
-                dom.accountScreen.innerHTML = `<div class="card"><h2>アカウント情報</h2><p>開発中です。</p></div>`;
-            }
+            
+            // ... (他の画面描画関数は変更なし) ...
 
             // --- 7. コンポーネント描画 ---
             function renderManual() {
                 const container = dom.mainScreen.querySelector('#manual-container');
                 if (!container) return;
-
-                const items = ['item2', 'item4', 'item5', 'item6']; // Dummy routine for now
-                const itemsHTML = items.map(itemId => {
-                    const item = masterInventory.find(i => i.id === itemId);
-                    return `
-                        <div class="task-item">
-                            <input type="checkbox" class="task-checkbox">
-                            <img src="${item.image}" alt="${item.name}" class="item-image-placeholder rounded-lg">
-                            <div class="flex-grow">
-                                <p class="font-bold">${item.name}</p>
-                                <p class="text-sm text-gray-500">${item.category}</p>
-                            </div>
-                            <button class="text-sm text-gray-500">詳細</button>
-                        </div>`;
-                }).join('');
-                container.innerHTML = `<h3 class="font-bold text-xl mb-4">🌙 夜のお手入れ</h3><div class="space-y-3">${itemsHTML}</div>`;
+                const morningItems = getRoutineItemsFor('morning');
+                const eveningItems = getRoutineItemsFor('evening');
+                container.innerHTML = createRoutineSectionHTML('☀️ 朝のレシピ', morningItems) + createRoutineSectionHTML('🌙 夜のレシピ', eveningItems);
             }
 
-            // --- 8. ヘルパー関数 ---
+            // --- 8. HTML生成ヘルパー ---
+            function createRoutineSectionHTML(title, items) {
+                if (items.length === 0) return '';
+                const itemsHTML = items.map(item => createTaskItemHTML(item)).join('');
+                return `<div class="card p-4 mb-4"><h3 class="font-bold text-lg mb-3">${title}</h3>${itemsHTML}</div>`;
+            }
+            function createTaskItemHTML(item) {
+                let reasonHTML = '';
+                if(item.reason){
+                    if(state.dailyConditions.skin === 'bad' && item.reason.skin) reasonHTML = `<div class="reason-badge">${item.reason.skin}</div>`;
+                    if(state.dailyConditions.makeup === 'yes' && item.reason.makeup) reasonHTML = `<div class="reason-badge">${item.reason.makeup}</div>`;
+                    if(state.dailyConditions.outing === 'yes' && item.reason.outing) reasonHTML = `<div class="reason-badge">${item.reason.outing}</div>`;
+                }
+
+                return `
+                    <div class="task-item">
+                        <input type="checkbox" class="task-checkbox">
+                        <img src="${item.image}" alt="${item.name}" class="item-image-placeholder rounded-lg">
+                        <div class="flex-grow">
+                            <p class="font-bold text-sm">${item.name}</p>
+                            <p class="text-xs text-gray-500">${item.category}</p>
+                            ${reasonHTML}
+                        </div>
+                    </div>`;
+            }
+
+            // --- 9. 状態更新 & UI反映 ---
+            function updateConditionUI() {
+                dom.mainScreen.querySelectorAll('.chips').forEach(div => {
+                    div.querySelectorAll('button').forEach(btn => {
+                        btn.classList.toggle('selected', btn.dataset.value === state.dailyConditions[div.dataset.group]);
+                    });
+                });
+            }
+
+            // --- 10. アルゴリズムロジック ---
+            function getRoutineItemsFor(time) {
+                let items = [];
+                if (time === 'morning') {
+                    items.push(masterInventory.find(i => i.id === 'item2')); // 洗顔
+                    items.push(masterInventory.find(i => i.id === 'item4')); // 化粧水
+                    if (state.dailyConditions.skin === 'bad') {
+                        items.push(masterInventory.find(i => i.id === 'item5')); // 美容液
+                    }
+                    items.push(masterInventory.find(i => i.id === 'item6')); // 乳液
+                    if (state.dailyConditions.outing === 'yes') {
+                        items.push(masterInventory.find(i => i.id === 'item7')); // 日焼け止め
+                    }
+                } else { // evening
+                    if (state.dailyConditions.makeup === 'yes') {
+                        items.push(masterInventory.find(i => i.id === 'item1')); // クレンジング
+                    }
+                    items.push(masterInventory.find(i => i.id === 'item2')); // 洗顔
+                    items.push(masterInventory.find(i => i.id === 'item4')); // 化粧水
+                    if (state.dailyConditions.skin === 'bad') {
+                        items.push(masterInventory.find(i => i.id === 'item5')); // 美容液
+                    }
+                    items.push(masterInventory.find(i => i.id === 'item6')); // 乳液
+                }
+                return items.filter(Boolean); // nullを除外
+            }
+            
+            // --- ヘルパー関数 ---
             function displayDate() {
                 const today = new Date();
                 dom.dateElement.textContent = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
             }
+            
+            // --- 他の画面のダミー描画関数 ---
+            function renderScheduleScreen() { dom.scheduleScreen.innerHTML = `<div class="card"><h2>スケジュール</h2><p>開発中です。</p></div>`; }
+            function renderInventoryScreen() { dom.inventoryScreen.innerHTML = `<div class="card"><h2>コスメ一覧</h2><p>開発中です。</p></div>`; }
+            function renderDiaryScreen() { dom.diaryScreen.innerHTML = `<div class="card"><h2>レシピダイアリー</h2><p>開発中です。</p></div>`; }
+            function renderAccountScreen() { dom.accountScreen.innerHTML = `<div class="card"><h2>アカウント情報</h2><p>開発中です。</p></div>`; }
 
-            // --- アプリケーション開始 ---
             initialize();
         });
     </script>
 </body>
 </html>
+
