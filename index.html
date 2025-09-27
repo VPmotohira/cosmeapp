@@ -92,7 +92,6 @@
                 { id: 'item7', category: '日焼け止め', name: 'アネッサ', image: 'https://placehold.co/100x100/F2BE22/FFFFFF?text=AN', reason: { type: 'info', text: '☀️ 外出ありのため' } },
             ];
             const pastRecipes = [{ date: '2025年9月27日 (土)', mode: '「静かな湖」', comment: '自分を甘やかす日！', routine: '夜のお手入れ 🌙', items: ['item1', 'item2', 'item4', 'item6'] }];
-            
             const state = {
                 currentScreen: 'main',
                 dailyConditions: JSON.parse(localStorage.getItem('dailyConditions')) || { skin: 'normal', makeup: 'no', outing: 'no', details: [] },
@@ -160,52 +159,74 @@
             }
 
             function renderScheduleScreen(container) {
-                container.innerHTML = `<div class="card"><h2>肌コンディション履歴</h2><div id="skin-condition-chart" class="line-chart-container"></div></div><div class="card"><h2>週間スケジュール</h2><div id="schedule-view"></div></section>`;
+                container.innerHTML = `<div class="card"><h2>肌コンディション履歴</h2><div id="skin-condition-chart" class="line-chart-container"></div></div><div class="card"><h2>週間スケジュール</h2><div id="schedule-view"></div></div>`;
                 renderSkinConditionChart();
                 renderWeeklySchedule();
             }
             
-            function renderInventoryScreen(container) { /* ... (変更なし) ... */ }
-            function renderDiaryScreen(container) { /* ... (変更なし) ... */ }
-            function renderAccountScreen(container) { /* ... (変更なし) ... */ }
+            function renderInventoryScreen(container) {
+                 const itemsHTML = masterInventory.map(item => `<div class="text-center"><img src="${item.image}" alt="${item.name}" class="w-24 h-24 rounded-lg mx-auto shadow-md mb-2 border-2 border-white"><p class="font-bold text-sm">${item.name}</p><p class="text-xs text-gray-500">${item.category}</p></div>`).join('');
+                container.innerHTML = `<div class="card"><h2>マイコスメ</h2><div class="grid grid-cols-3 sm:grid-cols-4 gap-4 mt-4">${itemsHTML}</div></div>`;
+            }
+            
+            function renderDiaryScreen(container) {
+                const diaryHTML = pastRecipes.map(recipe => {
+                    const itemImages = recipe.items.map(itemId => `<img src="${masterInventory.find(i => i.id === itemId).image}" class="w-10 h-10 rounded-full object-cover border-2 border-white -ml-2 first:ml-0">`).join('');
+                    return `<div class="bg-white rounded-2xl shadow-lg p-5 mb-6"><p class="text-sm font-semibold text-gray-400 mb-2">${recipe.date}</p><h3 class="text-xl font-bold mb-3">肌モード: ${recipe.mode}</h3>${recipe.comment ? `<div class="p-3 bg-pink-50 rounded-lg text-center mb-4"><p class="font-semibold" style="font-family: var(--handwriting-font); font-size: 1.2rem; color: #B48484;">"${recipe.comment}"</p></div>` : ''}<div class="border-t border-gray-100 pt-3"><p class="text-xs font-bold text-gray-400 mb-2">${recipe.routine}</p><div class="flex items-center pl-2">${itemImages}</div></div></div>`;
+                }).join('');
+                container.innerHTML = `<div>${diaryHTML}</div>`;
+            }
+
+            function renderAccountScreen(container) { container.innerHTML = `<div class="card"><h2>アカウント</h2><p>開発中です。</p></div>`; }
 
             function renderManual() {
                 const container = document.getElementById('manual-container');
                 if (!container) return;
                 const morningItems = getRoutineItemsFor('morning');
                 const eveningItems = getRoutineItemsFor('evening');
-                container.innerHTML = createRoutineSectionHTML('☀️ 朝のレシピ', morningItems) + createRoutineSectionHTML('🌙 夜のレシピ', eveningItems);
+                container.innerHTML = createRoutineSectionHTML('☀️ 朝のレシピ', morningItems, 'morning') + createRoutineSectionHTML('🌙 夜のレシピ', eveningItems, 'evening');
             }
 
-            function createRoutineSectionHTML(title, items) {
+            function createRoutineSectionHTML(title, items, time) {
                 if (items.length === 0) return '';
                 const itemsHTML = items.map(item => createTaskItemHTML(item)).join('');
-                return `<div class="card p-4 mb-4"><div class="recipe-header"><h3 class="font-bold text-lg">${title}</h3></div><p class="text-sm text-gray-500 mb-4">${items.length} ステップ</p>${itemsHTML}<button class="w-full mt-4 text-sm primary-action" style="background-color: var(--primary-color); color: white;">このレシピをシェアする</button></div>`;
+                const progressText = `0 / ${items.length} ステップ`;
+                return `<div class="card p-5 mb-4"><div class="recipe-header"><h3 class="font-bold text-lg">${title}</h3><div class="text-xs text-gray-400">昨日と変更なし</div></div><p class="text-sm text-gray-500 mb-4">${progressText}</p>${itemsHTML}<div class="flex gap-2 mt-4"><button class="w-full text-sm">一括完了</button><button class="w-full text-sm" style="background-color: var(--primary-color); color: white;">このレシピをシェア</button></div></div>`;
             }
 
-            function createTaskItemHTML(item) { /* ... (変更なし) ... */ }
-
+            function createTaskItemHTML(item) {
+                let reasonHTML = '';
+                if (item.reason) {
+                    const { skin, makeup, outing } = state.dailyConditions;
+                    if ((makeup === 'yes' && item.reason.text.includes('メイク')) || (outing === 'yes' && item.reason.text.includes('外出'))) {
+                        reasonHTML = `<div class="reason-badge info">${item.reason.text}</div>`;
+                    } else if (skin === 'bad' && item.reason.text.includes('肌荒れケア')) {
+                        reasonHTML = `<div class="reason-badge info">${item.reason.text}</div>`;
+                    } else if (skin === 'bad' && item.reason.text.includes('肌荒れ時はOFF')) {
+                         reasonHTML = `<div class="reason-badge warning">${item.reason.text}</div>`;
+                    }
+                }
+                return `<div class="task-item"><input type="checkbox" class="task-checkbox"><img src="${item.image}" alt="${item.name}" class="w-12 h-12 rounded-lg"><div class="flex-grow ml-4"><p class="font-bold text-sm">${item.name}</p><p class="text-xs text-gray-500">${item.category}</p>${reasonHTML}</div></div>`;
+            }
+            
             function renderSkinConditionChart() {
                 const chartContainer = document.getElementById('skin-condition-chart');
                 if (!chartContainer) return;
-
                 const dataPoints = [];
                 for (let i = -6; i <= 0; i++) {
                     const date = new Date(); date.setDate(new Date().getDate() + i);
                     const dateKey = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
                     dataPoints.push({ label: `${date.getDate()}日`, condition: state.skinHistory[dateKey] || 'normal' });
                 }
-
                 const width = chartContainer.clientWidth;
-                const height = chartContainer.clientHeight;
+                const height = 180; chartContainer.style.height = `${height}px`;
                 const padding = { top: 20, right: 20, bottom: 30, left: 20 };
                 const chartWidth = width - padding.left - padding.right;
                 const chartHeight = height - padding.top - padding.bottom;
                 const conditionToY = { 'good': 0, 'normal': chartHeight / 2, 'bad': chartHeight };
                 const points = dataPoints.map((dp, i) => ({ x: (chartWidth / (dataPoints.length - 1)) * i, y: conditionToY[dp.condition], condition: dp.condition, label: dp.label }));
-                const pathData = points.map(p => `${p.x},${p.y}`).join(' ');
-
-                chartContainer.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 ${width} ${height}"><g transform="translate(${padding.left}, ${padding.top})"><line x1="0" y1="0" x2="${chartWidth}" y2="0" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="2,2"></line><line x1="0" y1="${chartHeight / 2}" x2="${chartWidth}" y2="${chartHeight/2}" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="2,2"></line><line x1="0" y1="${chartHeight}" x2="${chartWidth}" y2="${chartHeight}" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="2,2"></line><polyline points="${pathData}" stroke="#E6A4B4" stroke-width="2.5" fill="none" /><g>${points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="5" fill="${{good: '#5D9C59', normal: '#F7B84B', bad: '#DF2E38'}[p.condition]}" stroke="white" stroke-width="2" /><text x="${p.x}" y="${chartHeight + 20}" text-anchor="middle" font-size="12" fill="#777">${p.label}</text>`).join('')}</g></g></svg>`;
+                const pathData = points.map((p, i) => (i === 0 ? 'M' : 'L') + `${p.x} ${p.y}`).join(' ');
+                chartContainer.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 ${width} ${height}"><g transform="translate(${padding.left}, ${padding.top})"><line x1="0" y1="0" x2="${chartWidth}" y2="0" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="2,2"></line><line x1="0" y1="${chartHeight / 2}" x2="${chartWidth}" y2="${chartHeight/2}" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="2,2"></line><line x1="0" y1="${chartHeight}" x2="${chartWidth}" y2="${chartHeight}" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="2,2"></line><path d="${pathData}" stroke="#E6A4B4" stroke-width="2.5" fill="none" /><g>${points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="5" fill="${{good: '#5D9C59', normal: '#F7B84B', bad: '#DF2E38'}[p.condition]}" stroke="white" stroke-width="2" /><text x="${p.x}" y="${chartHeight + 20}" text-anchor="middle" font-size="12" fill="#777">${p.label}</text>`).join('')}</g></g></svg>`;
             }
 
             function renderWeeklySchedule() {
@@ -216,7 +237,7 @@
                 const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
                 for (let i = 0; i < 7; i++) {
                     const date = new Date(today);
-                    date.setDate(today.getDate() - today.getDay() + i); // Start from Sunday
+                    date.setDate(today.getDate() - today.getDay() + i);
                     const isToday = date.toDateString() === today.toDateString();
                     const scheduledItems = masterInventory.filter(item => item.schedule?.days.includes(date.getDay()) && !item.wontUse);
                     html += `<div class="schedule-day"><div class="day-header ${isToday ? 'is-today' : ''}">${weekDays[i]}</div><ul>${scheduledItems.length > 0 ? scheduledItems.map(item => `<li>✨</li>`).join('') : ''}</ul></div>`;
@@ -224,11 +245,28 @@
                 container.innerHTML = html;
             }
 
-            // --- (その他の関数は変更なし) ---
             function updateConditionUI() { const container = document.getElementById('main-screen'); if (!container) return; container.querySelectorAll('.chips').forEach(div => { div.querySelectorAll('button').forEach(btn => { btn.classList.toggle('selected', btn.dataset.value === state.dailyConditions[div.dataset.group]); }); }); }
             function showRecalculatingFeedbackAndRender() { const feedbackEl = document.getElementById('recalculating-feedback'); if(!feedbackEl) return; feedbackEl.textContent = 'レシピを再計算中...'; setTimeout(() => { feedbackEl.textContent = ''; renderManual(); }, 300); }
-            function showDetailSkinModal() { /* ... */ }
-            function getRoutineItemsFor(time) { /* ... */ return []; }
+            function showDetailSkinModal() { alert('詳細設定は開発中です'); }
+            function getRoutineItemsFor(time) {
+                let items = [];
+                const { skin, makeup, outing } = state.dailyConditions;
+                if (time === 'morning') {
+                    items.push(masterInventory.find(i => i.id === 'item2'));
+                    items.push(masterInventory.find(i => i.id === 'item4'));
+                    if (skin === 'bad') items.push(masterInventory.find(i => i.id === 'item5'));
+                    items.push(masterInventory.find(i => i.id === 'item6'));
+                    if (outing === 'yes') items.push(masterInventory.find(i => i.id === 'item7'));
+                } else {
+                    if (makeup === 'yes') items.push(masterInventory.find(i => i.id === 'item1'));
+                    if (skin !== 'bad' && new Date().getDay() % 3 === 0) items.push(masterInventory.find(i => i.id === 'item3'));
+                    else items.push(masterInventory.find(i => i.id === 'item2'));
+                    items.push(masterInventory.find(i => i.id === 'item4'));
+                    if (skin === 'bad') items.push(masterInventory.find(i => i.id === 'item5'));
+                    items.push(masterInventory.find(i => i.id === 'item6'));
+                }
+                return items.filter(Boolean);
+            }
             function displayDate() { const today = new Date(); dom.dateElement.textContent = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`; }
             
             initialize();
