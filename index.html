@@ -85,14 +85,15 @@
 
 <script>
 /**
- * 美肌ロジック – 単一HTML版（コスメ一覧 完全対応）
- * 含まれる機能：
- * - ホーム：AM/PMセクションごとの「…メニュー」からレシピ反映/保存、全て完了、シェア
- * - ルール：外出→日焼け止め、メイク→クレンジング、肌荒れ→酵素/酸/レチノイド隠し
- * - 所要時間表示、why表示、開始から日数バッジ、不足カテゴリ提案
- * - 履歴/保存/localStorage 永続化、日付ロールオーバー
- * - コスメ一覧：検索、手入力で追加、開始日、所有トグル、**もう使わない**トグル、手入力品の削除
- * - 「もう使わない」は自動追加・候補・不足判定から除外
+ * 美肌ロジック – コスメ一覧：検索追加 / なくなりそう / もう使わない / デザイン強化 版
+ * 変更点：
+ * - 「＋コスメを追加」→ 検索モーダル（簡易カタログ）から選ぶだけで登録
+ * - UIの「所有中」トグルを撤去（内部の state.products は所有リストとして存続）
+ * - 製品ごとに「なくなりそう(lowStock)」「もう使わない(wontUse)」をON/OFF
+ * - カードのビジュアルを強化（グラデ、バッジ、影、角丸）
+ * - ルールは引き続き「もう使わない」を除外。lowStockはバッジ表示のみ（将来通知に活用）
+ *
+ * 既存のホーム（AM/PMの…メニュー／保存／反映等）は前回の仕様を維持
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -107,6 +108,19 @@ document.addEventListener('DOMContentLoaded', () => {
     { id:'item7', category:'日焼け止め',   name:'アネッサ',         image:'https://placehold.co/100x100/F2BE22/FFFFFF?text=AN', tags:['spf'], reason:{type:'info', text:'☀️ 外出ありのため'} },
   ];
 
+  /* ===== 簡易カタログ（検索用; 将来はCSV/APIに置換） ===== */
+  const catalog = [
+    // 既存
+    ...masterInventory.map(m => ({ id:m.id, name:m.name, category:m.category, image:m.image })),
+    // 追加例
+    { id:'cat001', name:'イプサ ザ・タイムR アクア', category:'化粧水', image:'https://placehold.co/100x100/2F80ED/FFFFFF?text=IP' },
+    { id:'cat002', name:'キールズ クリーム UFC', category:'乳液', image:'https://placehold.co/100x100/111/FFFFFF?text=K' },
+    { id:'cat003', name:'魔女工場 ピュアクレンジングオイル', category:'クレンジング', image:'https://placehold.co/100x100/EAB308/FFFFFF?text=MJ' },
+    { id:'cat004', name:'CeraVe Foaming Cleanser', category:'洗顔', image:'https://placehold.co/100x100/16A34A/FFFFFF?text=CV' },
+    { id:'cat005', name:'ビオレUV アクアリッチ', category:'日焼け止め', image:'https://placehold.co/100x100/3B82F6/FFFFFF?text=UV' },
+    { id:'cat006', name:'The Ordinary Niacinamide 10%', category:'美容液', image:'https://placehold.co/100x100/64748B/FFFFFF?text=TO' },
+  ];
+
   /* ===== 所要時間(分) ===== */
   const DURATION_MIN = {
     'クレンジング':2, '洗顔':1, '化粧水':1, '美容液':1, '乳液':1, '日焼け止め':1, '酵素洗顔':2
@@ -116,9 +130,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const LS_KEY = 'skincare.app.v1';
   /**
    * state = {
-   *   dailyConditions: { skin:'bad'|'normal'|'good', makeup:'yes'|'no', outing:'yes'|'no' },
-   *   products: [{ id, startDate?, wontUse? }],
-   *   savedRecipes: Recipe[], history: Recipe[], today?: DayInstance
+   *   dailyConditions: { skin, makeup, outing },
+   *   products: [{ id, startDate?, wontUse?:boolean, lowStock?:boolean }],
+   *   savedRecipes, history, today
    * }
    */
   let state = loadState() || initState();
@@ -127,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const todayISO = isoDate(new Date());
     return {
       dailyConditions: { skin:'normal', makeup:'no', outing:'no' },
-      products: masterInventory.map(p => ({ id:p.id, wontUse:false })), // 所有:初期ON、開始日なし
+      products: masterInventory.map(p => ({ id:p.id, wontUse:false, lowStock:false })), // 所有=初期ON
       savedRecipes: [],
       history: [],
       today: {
@@ -148,16 +162,14 @@ document.addEventListener('DOMContentLoaded', () => {
     dateElement : document.getElementById('current-date'),
     nav         : document.querySelector('nav'),
     main        : document.querySelector('main'),
-    modalContainer: document.getElementById('modal-container'),
   };
 
   /* ===== 初期化 ===== */
   initialize();
-
   function initialize(){
     displayDate();
+    migrateProductsShape(); // wontUse/lowStock の補填
     rolloverIfNeeded();
-    migrateProductsShape(); // wontUse を既存データに付与
     dom.nav.addEventListener('click', onNavClick);
     renderCurrentScreen();
   }
@@ -181,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function renderCurrentScreen(){ document.querySelector('button[data-screen="main"]').click(); }
 
-  /* ===== ホーム ===== */
+  /* ========== ホーム（前回仕様をベース。所要/why/不足提案など） ========== */
   function renderMainScreen(container){
     container.innerHTML = `
       <div class="condition-chips">
@@ -206,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div id="suggestion-card" class="hidden card text-sm"></div>
       <div id="manual-container"></div>
 
-      <!-- レシピ反映モーダル -->
+      <!-- レシピ反映モーダル（省略：前回版と同様に動作） -->
       <div id="apply-recipe-modal" class="hidden fixed inset-0 bg-black/30 flex items-end sm:items-center sm:justify-center z-50">
         <div class="bg-white w-full sm:w-[520px] rounded-t-2xl sm:rounded-2xl p-4">
           <div class="flex items-center justify-between mb-3">
@@ -227,7 +239,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
 
-      <!-- whyモーダル -->
       <div id="why-modal" class="hidden fixed inset-0 bg-black/30 flex items-center justify-center z-50">
         <div class="bg-white w-[90%] sm:w-[480px] rounded-2xl p-4">
           <div id="why-text" class="text-sm"></div>
@@ -253,7 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // 初期today
     if (!state.today || (!state.today.am.length && !state.today.pm.length)) {
       state.today = makeTodayFromRules(); saveState();
     }
@@ -267,7 +277,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const pmHTML = createRoutineSectionHTML('🌙 夜のレシピ', state.today.pm, pmMinutes, 'PM');
     wrap.innerHTML = amHTML + pmHTML;
 
-    // イベント
     wrap.querySelectorAll('[data-action="add-step"]').forEach(b => b.addEventListener('click', () => onAddStep(b.dataset.time)));
     wrap.querySelectorAll('[data-action="remove-today"]').forEach(b => b.addEventListener('click', () => onRemoveToday(b.dataset.time, b.dataset.id)));
     wrap.querySelectorAll('[data-action="why"]').forEach(b => b.addEventListener('click', () => openWhy(b.dataset.id)));
@@ -308,15 +317,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const name = p ? p.name : step.stepType;
     const cate = p ? p.category : step.stepType;
     const img  = p?.image || 'https://placehold.co/100x100/cccccc/FFFFFF?text=..';
-    const startDate = state.products.find(x => x.id === p?.id)?.startDate;
+    const prodState = p ? state.products.find(x => x.id === p.id) : null;
+    const startDate = prodState?.startDate;
     const daysSince = startDate ? daysBetween(new Date(startDate), new Date()) : null;
     const tip = daysSince != null ? `開始から${daysSince}日` : '';
     const reason = step.why ? `<div class="reason-badge info">${step.why}</div>` : '';
-    const warnWontUse = p && (state.products.find(x=>x.id===p.id)?.wontUse);
-    const wontBadge = warnWontUse ? `<div class="reason-badge warning">※ この製品は「もう使わない」設定です</div>` : '';
+    const wont = !!prodState?.wontUse;
+    const low  = !!prodState?.lowStock;
+    const badges = [
+      wont ? `<span class="reason-badge warning">🚫 もう使わない</span>` : '',
+      low  ? `<span class="reason-badge info">🔥 なくなりそう</span>` : ''
+    ].join('');
 
     return `
-      <li class="task-item">
+      <li class="task-item ${wont ? 'opacity-60' : ''}">
         <input type="checkbox" class="task-checkbox" />
         <img src="${img}" alt="${name}" class="w-12 h-12 rounded-lg" />
         <div class="flex-grow ml-4">
@@ -325,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${tip ? `<span class="ml-2 text-[10px] text-gray-500 border rounded px-1">${tip}</span>` : ''}
           </p>
           <p class="text-xs text-gray-500">${cate}</p>
-          ${reason}${wontBadge}
+          <div class="mt-1 flex flex-wrap gap-1">${reason}${badges}</div>
         </div>
         <div class="flex gap-2">
           <button class="text-xs px-2 py-1 border rounded" data-action="why" data-id="${step.id}">i</button>
@@ -335,12 +349,10 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
-  /* ===== セクション操作 ===== */
+  /* ===== セクション操作（前回通り） ===== */
   function openSectionMenu(time){
     const pick = prompt(
-      `${time}の操作を選んでください：\n` +
-      `1: このセクションのレシピを反映\n` +
-      `2: このセクションのレシピを保存`
+      `${time}の操作を選んでください：\n1: このセクションのレシピを反映\n2: このセクションのレシピを保存`
     );
     if (pick === '1') openApplyModal(time);
     if (pick === '2') onSaveCurrentAsRecipe(time);
@@ -362,58 +374,34 @@ document.addEventListener('DOMContentLoaded', () => {
     else { navigator.clipboard.writeText(text).then(()=>alert('レシピをコピーしました')); }
   }
 
-  /* ===== ルール ===== */
+  /* ===== ルール（wontUse除外） ===== */
   function makeTodayFromRules(){
     const date = isoDate(new Date());
-    const baseAM = [
-      asStep('洗顔','item2','AM'),
-      asStep('化粧水','item4','AM'),
-      asStep('乳液','item6','AM'),
-    ];
-    const basePM = [
-      maybeAsStep('酵素洗顔','item3','PM'),
-      asStep('洗顔','item2','PM'),
-      asStep('化粧水','item4','PM'),
-      asStep('乳液','item6','PM'),
-    ];
-    const today = {
-      date, conditions:{ ...state.dailyConditions },
-      am: baseAM, pm: basePM,
-      overrides:{ amRemove:[], pmRemove:[], amAdd:[], pmAdd:[] }, whyMap:{}
-    };
+    const baseAM = [ asStep('洗顔','item2','AM'), asStep('化粧水','item4','AM'), asStep('乳液','item6','AM') ];
+    const basePM = [ maybeAsStep('酵素洗顔','item3','PM'), asStep('洗顔','item2','PM'), asStep('化粧水','item4','PM'), asStep('乳液','item6','PM') ];
+    const today = { date, conditions:{ ...state.dailyConditions }, am: baseAM, pm: basePM, overrides:{ amRemove:[], pmRemove:[], amAdd:[], pmAdd:[] }, whyMap:{} };
     applyRulesInPlace(today);
     return today;
   }
-
   function recalcTodayByRules(){ if(!state.today) return; applyRulesInPlace(state.today); saveState(); refreshSuggestionCard(); }
-
   function applyRulesInPlace(day){
-    [...day.am, ...day.pm].forEach(s => { s.hidden = false; if(!day.whyMap[s.id]) s.why = undefined; });
+    [...day.am, ...day.pm].forEach(s => { s.hidden = false; s.why = undefined; });
     const cond = day.conditions;
 
-    // 外出 → AMに日焼け止め（wontUse除外）
     if (cond.outing === 'yes') {
       const hasSPF = day.am.some(s => !s.hidden && masterInventory.find(mi => mi.id===s.productId)?.category==='日焼け止め');
       if (!hasSPF) {
-        const ownedSPF = state.products
-          .filter(p => !p.wontUse)
-          .map(x => masterInventory.find(m=>m.id===x.id))
-          .find(m => m?.category==='日焼け止め');
+        const ownedSPF = state.products.filter(p=>!p.wontUse).map(x => masterInventory.find(m=>m.id===x.id)).find(m=>m?.category==='日焼け止め');
         if (ownedSPF) day.am.push(asStep('日焼け止め', ownedSPF.id, 'AM', '外出のため追加しました'));
       }
     }
-    // メイク → PMにクレンジング（wontUse除外）
     if (cond.makeup === 'yes') {
       const hasCLR = day.pm.some(s => !s.hidden && masterInventory.find(mi => mi.id===s.productId)?.category==='クレンジング');
       if (!hasCLR) {
-        const ownedCLR = state.products
-          .filter(p => !p.wontUse)
-          .map(x => masterInventory.find(m=>m.id===x.id))
-          .find(m => m?.category==='クレンジング');
+        const ownedCLR = state.products.filter(p=>!p.wontUse).map(x => masterInventory.find(m=>m.id===x.id)).find(m=>m?.category==='クレンジング');
         if (ownedCLR) day.pm.unshift(asStep('クレンジング', ownedCLR.id, 'PM', 'メイクしているため追加しました'));
       }
     }
-    // 肌荒れ → 酵素/酸/レチノイド隠す & 美容液に理由
     if (cond.skin === 'bad') {
       const hideTags = ['enzyme','acid','retinoid'];
       [...day.am, ...day.pm].forEach(s => {
@@ -426,8 +414,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (prod.category==='美容液') s.why = s.why || '肌荒れケアのため表示しています';
       });
     }
-
-    // 当日だけの除外
     day.am.forEach(s => { if (day.overrides.amRemove.includes(s.id)) s.hidden = true; });
     day.pm.forEach(s => { if (day.overrides.pmRemove.includes(s.id)) s.hidden = true; });
   }
@@ -440,12 +426,9 @@ document.addEventListener('DOMContentLoaded', () => {
       durationMin: DURATION_MIN[prod?.category || stepType] || 1, hidden:false, why };
   }
   function maybeAsStep(stepType, productId, tod){ const prod = masterInventory.find(i => i.id===productId); if(!prod) return null; return asStep(stepType, productId, tod); }
-  function calcDurations(day){
-    const sum = (arr)=>arr.filter(s=>!s.hidden).reduce((a,s)=>a+(s.durationMin||1),0);
-    return { amMinutes: sum(day.am), pmMinutes: sum(day.pm) };
-  }
+  function calcDurations(day){ const sum = (arr)=>arr.filter(s=>!s.hidden).reduce((a,s)=>a+(s.durationMin||1),0); return { amMinutes: sum(day.am), pmMinutes: sum(day.pm) }; }
 
-  /* ===== 当日だけの増減 ===== */
+  /* ===== 当日だけの増減 / 追加（wontUse除外） ===== */
   function onRemoveToday(tod, stepId){
     if(!state.today) return;
     const key = tod==='AM' ? 'amRemove':'pmRemove';
@@ -456,11 +439,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const category = prompt('追加するカテゴリ（例：美容液, 乳液, 日焼け止め, 洗顔, クレンジング, 酵素洗顔, 化粧水）');
     if(!category) return;
     const owned = state.products
-      .filter(x => !x.wontUse) // もう使わないを除外
+      .filter(x => !x.wontUse)
       .map(x => masterInventory.find(m=>m.id===x.id))
       .filter(Boolean)
       .filter(m => m.category === category.trim());
-    if(!owned.length){ alert(`「${category}」の登録がありません。コスメ一覧から追加してください。`); return; }
+    if(!owned.length){ alert(`「${category}」が登録されていません。コスメ一覧の検索追加から登録してください。`); return; }
     const names = owned.map((m,i)=>`${i+1}: ${m.name}`).join('\n');
     const pick = prompt(`追加する製品を選んでください：\n${names}`);
     const idx = Number(pick)-1; if(isNaN(idx)||idx<0||idx>=owned.length) return;
@@ -470,8 +453,8 @@ document.addEventListener('DOMContentLoaded', () => {
     saveState(); renderManual();
   }
 
-  /* ===== レシピ保存/反映（AM/PM対応） ===== */
-  function openApplyModal(time /* 'AM' | 'PM' | undefined */){
+  /* ===== レシピ保存/反映（既存どおり） ===== */
+  function openApplyModal(time){
     const modal = document.getElementById('apply-recipe-modal');
     modal.classList.remove('hidden');
     document.getElementById('close-apply-modal').onclick = () => modal.classList.add('hidden');
@@ -517,17 +500,15 @@ document.addEventListener('DOMContentLoaded', () => {
     tabSaved.onclick = () => activate('saved'); tabHistory.onclick = () => activate('history');
     renderSaved(); renderHistory(); activate('saved');
   }
-
-  function onSaveCurrentAsRecipe(time /* 'AM' | 'PM' | undefined */){
+  function onSaveCurrentAsRecipe(time){
     if(!state.today) return;
     const name = prompt('レシピ名（例：肌荒れ用PM）');
     const rec = { id: uuid(), name: name || undefined, createdAt: new Date().toISOString(), am: deepClone(state.today.am), pm: deepClone(state.today.pm) };
-    if (time === 'AM') rec.pm = []; // 片側保存
+    if (time === 'AM') rec.pm = [];
     if (time === 'PM') rec.am = [];
     state.savedRecipes.unshift(rec); saveState(); alert('保存しました');
   }
-
-  function applyRecipeToToday(recipe, time /* optional */){
+  function applyRecipeToToday(recipe, time){
     const clone = dayFromRecipe(recipe);
     if(!state.today) state.today = makeTodayFromRules();
     if(time==='AM'){ state.today.am = clone.am; }
@@ -536,17 +517,11 @@ document.addEventListener('DOMContentLoaded', () => {
     state.today.conditions = { ...state.dailyConditions };
     applyRulesInPlace(state.today);
   }
-
   function dayFromRecipe(r){
-    return {
-      date: isoDate(new Date()),
-      conditions: { ...state.dailyConditions },
-      am: deepClone(r.am||[]), pm: deepClone(r.pm||[]),
-      overrides:{ amRemove:[], pmRemove:[], amAdd:[], pmAdd:[] }, whyMap:{}
-    };
+    return { date: isoDate(new Date()), conditions:{ ...state.dailyConditions }, am: deepClone(r.am||[]), pm: deepClone(r.pm||[]), overrides:{ amRemove:[], pmRemove:[], amAdd:[], pmAdd:[] }, whyMap:{} };
   }
 
-  /* ===== 不足提案 ===== */
+  /* ===== 不足提案（wontUse除外） ===== */
   function refreshSuggestionCard(){
     const card = document.getElementById('suggestion-card'); if(!card || !state.today) return;
     card.classList.add('hidden');
@@ -560,9 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!hasCLR) need.push('クレンジング');
     }
     const lacks = need.filter(cat =>
-      !state.products
-        .filter(p => !p.wontUse) // もう使わない除外
-        .some(p => masterInventory.find(m => m.id===p.id)?.category === cat)
+      !state.products.filter(p => !p.wontUse).some(p => masterInventory.find(m => m.id===p.id)?.category === cat)
     );
     if (!lacks.length) return;
     const cats = [...new Set(lacks)].join('・');
@@ -580,50 +553,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const idx = Number(pick)-1;
       const pool = masterInventory.filter(m => lacks.includes(m.category));
       if(!isNaN(idx) && pool[idx]){
-        if(!state.products.some(p => p.id===pool[idx].id)) state.products.push({ id: pool[idx].id, wontUse:false });
+        if(!state.products.some(p => p.id===pool[idx].id)) state.products.push({ id: pool[idx].id, wontUse:false, lowStock:false });
         saveState(); recalcTodayByRules(); renderManual();
       }
     };
   }
 
-  /* ===== WHY ===== */
-  function openWhy(stepId){
-    const step = [...(state.today?.am||[]), ...(state.today?.pm||[])].find(s => s.id===stepId);
-    const text = step?.why || 'このステップの理由は特にありません。';
-    const modal = document.getElementById('why-modal');
-    document.getElementById('why-text').textContent = text;
-    modal.classList.remove('hidden');
-    document.getElementById('close-why').onclick = () => modal.classList.add('hidden');
-  }
-
-  /* ===== 日付ロールオーバー ===== */
-  function rolloverIfNeeded(){
-    const todayISO = isoDate(new Date());
-    if (!state.today || state.today.date === todayISO) return;
-    state.history.unshift({ id: uuid(), createdAt: state.today.date + 'T00:00:00Z', am: deepClone(state.today.am), pm: deepClone(state.today.pm) });
-    state.today = makeTodayFromRules(); saveState();
-  }
-
-  /* ===== スケジュール/ダイアリー/アカウント（簡易） ===== */
-  function renderScheduleScreen(container){
-    container.innerHTML = `<div class="card"><h2>簡易スケジュール</h2><p class="text-sm text-gray-500">開発中です</p></div>`;
-  }
-  function renderDiaryScreen(container){
-    const list = (state.history||[]).slice(0,10);
-    const html = list.map(r => {
-      const steps = (r.am?.filter(s=>!s.hidden).length||0) + (r.pm?.filter(s=>!s.hidden).length||0);
-      return `<div class="border rounded p-3 mb-3">
-        <div class="text-sm font-semibold">${(r.createdAt||'').slice(0,10)}</div>
-        <div class="text-xs text-gray-500">${steps} ステップ</div>
-      </div>`;
-    }).join('') || `<p class="text-sm text-gray-500">まだ履歴がありません</p>`;
-    container.innerHTML = `<div class="card"><h2>ダイアリー</h2>${html}</div>`;
-  }
-  function renderAccountScreen(container){
-    container.innerHTML = `<div class="card"><h2>アカウント</h2><p>サインアップ不要で使えます。</p></div>`;
-  }
-
-  /* ===== コスメ一覧（検索/追加/所有/もう使わない/開始日/削除） ===== */
+  /* ===== コスメ一覧：検索追加 / lowStock & wontUse ===== */
   function renderInventoryScreen(container) {
     container.innerHTML = `
       <div class="card">
@@ -631,39 +567,23 @@ document.addEventListener('DOMContentLoaded', () => {
           <span>マイコスメ</span>
           <div class="flex gap-2">
             <input id="inv-search" type="search" placeholder="検索（ブランド/商品/カテゴリ）" class="border rounded px-3 py-1 text-sm w-40 sm:w-64" />
-            <button id="inv-add" class="btn-primary text-sm">＋ コスメを追加</button>
+            <button id="inv-add" class="btn-primary text-sm">＋ 検索して追加</button>
           </div>
         </h2>
         <div id="inv-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3"></div>
       </div>
 
-      <!-- 追加モーダル -->
+      <!-- 検索モーダル -->
       <div id="inv-modal" class="hidden fixed inset-0 bg-black/30 flex items-end sm:items-center sm:justify-center z-50">
-        <div class="bg-white w-full sm:w-[520px] rounded-t-2xl sm:rounded-2xl p-4">
+        <div class="bg-white w-full sm:w-[560px] rounded-t-2xl sm:rounded-2xl p-4">
           <div class="flex items-center justify-between mb-3">
-            <h3 class="text-lg font-semibold">コスメを追加</h3>
+            <h3 class="text-lg font-semibold">コスメを検索して追加</h3>
             <button id="inv-modal-close" class="text-gray-500 text-lg">✕</button>
           </div>
-          <div class="grid gap-3 text-sm">
-            <label class="grid gap-1">
-              <span>ブランド</span>
-              <input id="inv-brand" class="border rounded px-3 py-2" placeholder="例：オルビス" />
-            </label>
-            <label class="grid gap-1">
-              <span>商品名</span>
-              <input id="inv-name" class="border rounded px-3 py-2" placeholder="例：オルビスユー" />
-            </label>
-            <label class="grid gap-1">
-              <span>カテゴリ</span>
-              <input id="inv-category" class="border rounded px-3 py-2" placeholder="例：化粧水 / 乳液 / 洗顔 / クレンジング …" />
-            </label>
-            <label class="grid gap-1">
-              <span>開始日（任意）</span>
-              <input id="inv-start" type="date" class="border rounded px-3 py-2" />
-            </label>
-            <div class="text-right mt-2">
-              <button id="inv-save" class="btn-primary">追加する</button>
-            </div>
+          <div class="grid gap-3">
+            <input id="cat-q" class="border rounded px-3 py-2 text-sm" placeholder="商品名・ブランド・カテゴリで検索" />
+            <div id="cat-list" class="max-h-[360px] overflow-auto grid gap-2"></div>
+            <div class="text-xs text-gray-500">見つからない？ <button id="cat-add-manual" class="underline">手入力で追加</button></div>
           </div>
         </div>
       </div>
@@ -687,36 +607,43 @@ document.addEventListener('DOMContentLoaded', () => {
         const prodState = state.products.find(p => p.id === item.id);
         const start = prodState?.startDate || '';
         const wont = !!prodState?.wontUse;
-        const initials = (item.name || '?').split(/\s+/).map(s=>s[0]).slice(0,2).join('').toUpperCase();
+        const low  = !!prodState?.lowStock;
+        const initials = brandInitials(item.name);
+        const grad = avatarGradient(item.category);
+
         return `
-          <div class="border rounded p-3 flex flex-col gap-2 ${wont ? 'opacity-60 grayscale' : ''}">
-            <div class="w-16 h-16 rounded-md grid place-items-center text-white text-lg font-bold mx-auto"
-                 style="background:${avatarColor(item.category)}">${initials}</div>
-            <div class="text-center">
-              <p class="font-bold text-sm">${item.name}</p>
-              <p class="text-xs text-gray-500">${item.category}</p>
+          <div class="rounded-2xl p-3 shadow-sm border border-gray-100 bg-white">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl grid place-items-center text-white text-sm font-bold shadow" style="background:${grad}">${initials}</div>
+              <div class="flex-1">
+                <p class="font-bold text-sm leading-tight">${item.name}</p>
+                <p class="text-[11px] text-gray-500">${item.category}</p>
+              </div>
+              <div class="flex gap-1">
+                ${wont ? `<span class="px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700">🚫 もう使わない</span>` : ''}
+                ${low  ? `<span class="px-2 py-0.5 text-[10px] rounded-full bg-sky-100 text-sky-700">🔥 なくなりそう</span>` : ''}
+              </div>
             </div>
-            <div class="text-xs">
-              <label class="block">開始日（任意）
+
+            <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <label class="col-span-2">
+                <span class="text-gray-500">開始日（任意）</span>
                 <input type="date" value="${start}" data-pid="${item.id}" class="mt-1 w-full border rounded px-2 py-1 text-sm"/>
               </label>
-            </div>
-            <div class="flex items-center justify-between text-xs mt-1">
-              <label class="flex items-center gap-1">
-                <input type="checkbox" data-own="${item.id}" ${prodState ? 'checked' : ''}/>
-                所有中
+              <label class="flex items-center gap-2">
+                <input type="checkbox" data-low="${item.id}" ${low ? 'checked' : ''}/>
+                なくなりそう
               </label>
-              <label class="flex items-center gap-1">
+              <label class="flex items-center gap-2">
                 <input type="checkbox" data-wont="${item.id}" ${wont ? 'checked' : ''}/>
                 もう使わない
               </label>
             </div>
-            <div class="flex items-center justify-end text-xs">
-              ${item.custom ? `<button class="px-2 py-1 border rounded" data-del="${item.id}">削除</button>` : ''}
-            </div>
+
+            ${item.custom ? `<div class="mt-2 text-right"><button class="px-2 py-1 border rounded text-xs" data-del="${item.id}">削除</button></div>` : ''}
           </div>
         `;
-      }).join('') || `<p class="text-sm text-gray-500">所有しているコスメがありません。「＋ コスメを追加」から登録してください。</p>`;
+      }).join('') || `<p class="text-sm text-gray-500">登録コスメがありません。「＋ 検索して追加」から登録してください。</p>`;
 
       // ハンドラ
       grid.querySelectorAll('input[type="date"]').forEach(inp => {
@@ -727,17 +654,6 @@ document.addEventListener('DOMContentLoaded', () => {
           saveState();
         });
       });
-      grid.querySelectorAll('input[data-own]').forEach(chk => {
-        chk.addEventListener('change', () => {
-          const pid = chk.dataset.own;
-          if (chk.checked) {
-            if (!state.products.some(p => p.id === pid)) state.products.push({ id: pid, wontUse:false });
-          } else {
-            state.products = state.products.filter(p => p.id !== pid);
-          }
-          saveState(); render();
-        });
-      });
       grid.querySelectorAll('input[data-wont]').forEach(chk => {
         chk.addEventListener('change', () => {
           const pid = chk.dataset.wont;
@@ -746,12 +662,20 @@ document.addEventListener('DOMContentLoaded', () => {
           saveState(); render();
         });
       });
+      grid.querySelectorAll('input[data-low]').forEach(chk => {
+        chk.addEventListener('change', () => {
+          const pid = chk.dataset.low;
+          const rec = state.products.find(p => p.id === pid);
+          if (rec) rec.lowStock = chk.checked;
+          saveState(); render();
+        });
+      });
       grid.querySelectorAll('button[data-del]').forEach(btn => {
         btn.addEventListener('click', () => {
           const pid = btn.dataset.del;
           const item = masterInventory.find(m => m.id === pid);
           if (!item?.custom) return;
-          if (!confirm(`「${item.name}」を削除しますか？（履歴には影響しません）`)) return;
+          if (!confirm(`「${item.name}」を削除しますか？`)) return;
           state.products = state.products.filter(p => p.id !== pid);
           const idx = masterInventory.findIndex(m => m.id === pid);
           if (idx >= 0) masterInventory.splice(idx, 1);
@@ -760,70 +684,137 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     };
 
-    // 検索
+    // 検索ボックス
     search.addEventListener('input', render);
 
-    // 追加モーダル
+    // 検索モーダル
     const modal = container.querySelector('#inv-modal');
     const close = container.querySelector('#inv-modal-close');
-    const save  = container.querySelector('#inv-save');
-    const $b = sel => container.querySelector(sel);
+    const qEl   = container.querySelector('#cat-q');
+    const list  = container.querySelector('#cat-list');
+    const addManual = container.querySelector('#cat-add-manual');
 
-    addBtn.addEventListener('click', () => { modal.classList.remove('hidden'); });
-    close.addEventListener('click', () => { modal.classList.add('hidden'); });
+    function openModal(){
+      modal.classList.remove('hidden');
+      qEl.value = '';
+      renderCatalog('');
+      setTimeout(()=>qEl.focus(), 0);
+    }
+    function closeModal(){ modal.classList.add('hidden'); }
 
-    save.addEventListener('click', () => {
-      const brand = $b('#inv-brand').value.trim();
-      const name  = $b('#inv-name').value.trim();
-      const cat   = $b('#inv-category').value.trim();
-      const start = $b('#inv-start').value;
-
-      if (!name || !cat) { alert('商品名とカテゴリは必須です'); return; }
-
+    addBtn.addEventListener('click', openModal);
+    close.addEventListener('click', closeModal);
+    addManual.addEventListener('click', () => {
+      const name = prompt('商品名'); if(!name) return;
+      const category = prompt('カテゴリ（化粧水/乳液/洗顔/クレンジング/美容液/日焼け止め/酵素洗顔 など）'); if(!category) return;
       const id = uuid();
-      masterInventory.push({
-        id, category: cat, name: brand ? `${brand} ${name}` : name,
-        image: 'https://placehold.co/100x100/777/FFFFFF?text=NEW', custom: true
-      });
-      state.products.push({ id, startDate: start || undefined, wontUse:false });
-      saveState();
-
-      // リセット
-      $b('#inv-brand').value=''; $b('#inv-name').value=''; $b('#inv-category').value=''; $b('#inv-start').value='';
-      modal.classList.add('hidden');
-      render();
+      masterInventory.push({ id, name, category, image:'https://placehold.co/100x100/777/FFFFFF?text=NEW', custom:true });
+      state.products.push({ id, wontUse:false, lowStock:false });
+      saveState(); render(); closeModal();
     });
+
+    qEl.addEventListener('input', () => renderCatalog(qEl.value));
+
+    function renderCatalog(q){
+      const qs = (q||'').trim().toLowerCase();
+      const results = !qs ? catalog.slice(0,20) : catalog.filter(c => [c.name, c.category].join(' ').toLowerCase().includes(qs)).slice(0,50);
+      list.innerHTML = results.map(c => {
+        const owned = state.products.some(p => p.id === c.id);
+        return `
+          <div class="flex items-center justify-between border rounded p-2">
+            <div class="flex items-center gap-3">
+              <img src="${c.image}" class="w-10 h-10 rounded-md" />
+              <div>
+                <div class="text-sm font-medium">${c.name}</div>
+                <div class="text-xs text-gray-500">${c.category}</div>
+              </div>
+            </div>
+            <button class="text-xs ${owned ? 'btn-secondary opacity-60' : 'btn-primary'}" data-add="${c.id}" ${owned ? 'disabled' : ''}>${owned ? '登録済み' : '追加'}</button>
+          </div>
+        `;
+      }).join('') || `<p class="text-sm text-gray-500">該当なし。キーワードを変えてみてください。</p>`;
+
+      list.querySelectorAll('button[data-add]').forEach(b => {
+        b.addEventListener('click', () => {
+          const id = b.dataset.add;
+          let item = masterInventory.find(m => m.id === id);
+          if (!item) {
+            // カタログのみ→マスターに取り込み
+            const c = catalog.find(x => x.id === id);
+            if (!c) return;
+            item = { id: c.id, name: c.name, category: c.category, image: c.image, custom:true };
+            masterInventory.push(item);
+          }
+          if (!state.products.some(p => p.id === id)) state.products.push({ id, wontUse:false, lowStock:false });
+          saveState();
+          b.textContent = '登録済み'; b.disabled = true; b.classList.add('opacity-60');
+          render();
+        });
+      });
+    }
 
     render();
   }
 
-  /* ===== 移行・色・共通 ===== */
+  /* ===== ダイアリー/スケジュール/アカウント（簡易） ===== */
+  function renderScheduleScreen(container){ container.innerHTML = `<div class="card"><h2>簡易スケジュール</h2><p class="text-sm text-gray-500">開発中です</p></div>`; }
+  function renderDiaryScreen(container){
+    const list = (state.history||[]).slice(0,10);
+    const html = list.map(r => {
+      const steps = (r.am?.filter(s=>!s.hidden).length||0) + (r.pm?.filter(s=>!s.hidden).length||0);
+      return `<div class="border rounded p-3 mb-3"><div class="text-sm font-semibold">${(r.createdAt||'').slice(0,10)}</div><div class="text-xs text-gray-500">${steps} ステップ</div></div>`;
+    }).join('') || `<p class="text-sm text-gray-500">まだ履歴がありません</p>`;
+    container.innerHTML = `<div class="card"><h2>ダイアリー</h2>${html}</div>`;
+  }
+  function renderAccountScreen(container){ container.innerHTML = `<div class="card"><h2>アカウント</h2><p>サインアップ不要で使えます。</p></div>`; }
+
+  /* ===== 共通 ===== */
   function migrateProductsShape(){
     if (!Array.isArray(state.products)) return;
     state.products.forEach(p => {
       if (typeof p.wontUse === 'undefined') p.wontUse = false;
+      if (typeof p.lowStock === 'undefined') p.lowStock = false;
     });
     saveState();
   }
-  function avatarColor(category){
-    const colors = {
-      'クレンジング':'#8B6B61','洗顔':'#111111','酵素洗顔':'#63C3C3',
-      '化粧水':'#368CCB','美容液':'#2D2D2D','乳液':'#C9002B','日焼け止め':'#F2BE22'
-    };
-    return colors[category] || '#888888';
+  function brandInitials(name){
+    const chunks = (name||'').replace(/\s+/g,' ').trim().split(' ');
+    if (chunks.length === 1) return chunks[0].slice(0,2).toUpperCase();
+    return (chunks[0][0] + chunks[1][0]).toUpperCase();
   }
-  function displayDate(){ const t = new Date(); document.getElementById('current-date').textContent = `${t.getFullYear()}年${t.getMonth()+1}月${t.getDate()}日`; }
+  function avatarGradient(category){
+    const map = {
+      'クレンジング':['#8B6B61','#C7AE97'],
+      '洗顔':['#111827','#6B7280'],
+      '酵素洗顔':['#36CFC9','#9AE6E6'],
+      '化粧水':['#368CCB','#93C5FD'],
+      '美容液':['#2D2D2D','#6B7280'],
+      '乳液':['#C9002B','#F59E9E'],
+      '日焼け止め':['#F59E0B','#FDE68A']
+    };
+    const g = map[category] || ['#888','#BBB'];
+    return `linear-gradient(135deg, ${g[0]}, ${g[1]})`;
+  }
+  function displayDate(){ const t=new Date(); document.getElementById('current-date').textContent = `${t.getFullYear()}年${t.getMonth()+1}月${t.getDate()}日`; }
   function isoDate(d){ return d.toISOString().slice(0,10); }
   function daysBetween(a,b){ return Math.floor((+b - +a)/(1000*60*60*24)); }
   function deepClone(x){ return JSON.parse(JSON.stringify(x)); }
   function showRecalc(cb){ const el=document.getElementById('recalculating-feedback'); if(!el){cb();return;} el.textContent='レシピを再計算中...'; setTimeout(()=>{ el.textContent=''; cb(); },200); }
+  function rolloverIfNeeded(){
+    const todayISO = isoDate(new Date());
+    if (!state.today || state.today.date === todayISO) return;
+    state.history.unshift({ id: uuid(), createdAt: state.today.date + 'T00:00:00Z', am: deepClone(state.today.am), pm: deepClone(state.today.pm) });
+    state.today = makeTodayFromRules(); saveState();
+  }
 });
 </script>
 
 
 
+
 </body>
 </html>
+
 
 
 
