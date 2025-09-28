@@ -411,49 +411,58 @@ document.addEventListener('DOMContentLoaded', () => {
       saveState(); render(); closeModal();
     });
 
-    function buildTabs(){
-      tabs.innerHTML = CATEGORIES.map(cat => `
-        <button data-tab="${cat}" class="px-3 py-1 rounded-full border text-sm ${cat===activeCat?'bg-black text-white':'bg-white'}">${cat}</button>
-      `).join('');
-      tabs.querySelectorAll('button[data-tab]').forEach(b=>{
-        b.addEventListener('click', () => { activeCat=b.dataset.tab; buildTabs(); renderCatalog(); });
-      });
-    }
+function renderCatalog(){
+  const qs = (qEl.value||'').trim().toLowerCase();
+  const pool = catalog.filter(c =>
+    (activeCat === 'その他'
+      ? !CATEGORIES.includes(c.category) || c.category === activeCat
+      : c.category === activeCat)
+  );
+  const results = pool
+    .filter(c => !qs || [c.name].join(' ').toLowerCase().includes(qs))
+    .slice(0, 80);
 
-    function renderCatalog(){
-      const qs = (qEl.value||'').trim().toLowerCase();
-      const pool = catalog.filter(c => (activeCat==='その他' ? !CATEGORIES.includes(c.category) || c.category===activeCat : c.category===activeCat));
-      const results = pool.filter(c => !qs || [c.name].join(' ').toLowerCase().includes(qs)).slice(0,80);
-      list.innerHTML = results.map(c => {
-        const owned = state.products.some(p => p.id === c.id);
-        return `
-          <div class="flex gap-3 p-2 border rounded-lg">
-            <img src="${c.image}" class="w-14 h-14 rounded-lg object-cover" />
-            <div class="flex-1 min-w-0">
-              <div class="text-sm font-medium truncate">${c.name}</div>
-              <div class="text-xs text-gray-500">${c.category}</div>
-            </div>
-            <button class="text-xs ${owned?'btn-secondary opacity-60':'btn-primary'} h-8 self-center" data-add="${c.id}" ${owned?'disabled':''}>${owned?'登録済み':'追加'}</button>
-          </div>`;
-      }).join('') || `<p class="text-sm text-gray-500">該当なし</p>`;
+  list.innerHTML = results.map(c => {
+    const owned = state.products.some(p => p.id === c.id);
+    return `
+      <div class="flex gap-3 p-2 border rounded-lg">
+        <img src="${c.image}" class="w-14 h-14 rounded-lg object-cover" />
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium truncate">${c.name}</div>
+          <div class="text-xs text-gray-500">${c.category}</div>
+        </div>
+        <button
+          class="text-xs ${owned ? 'btn-secondary opacity-60' : 'btn-primary'} h-8 self-center"
+          data-add="${c.id}"
+          ${owned ? 'disabled' : ''}
+        >${owned ? '登録済み' : '追加'}</button>
+      </div>
+    `;
+  }).join('') || `<p class="text-sm text-gray-500">該当なし</p>`;
 
-      list.querySelectorAll('button[data-add]').forEach(b => {
-        b.addEventListener('click', () => {
-          const id = b.dataset.add;
-          let item = masterInventory.find(m => m.id === id);
-          if (!item) {
-            const c = catalog.find(x => x.id === id); if(!c) return;
-            item = { id:c.id, name:c.name, category:c.category, image:c.image, custom:true };
-            masterInventory.push(item);
-          }
-          if (!state.products.some(p => p.id === id)) state.products.push({ id, wontUse:false, lowStock:false });
-          saveState(); b.textContent='登録済み'; b.disabled=true; b.classList.add('opacity-60'); render();
-        });
-      });
-    }
+  // 追加ボタンのイベント
+  list.querySelectorAll('button[data-add]').forEach(b => {
+    b.addEventListener('click', () => {
+      const id = b.dataset.add;
+      let item = masterInventory.find(m => m.id === id);
+      if (!item) {
+        const c = catalog.find(x => x.id === id);
+        if (!c) return;
+        item = { id: c.id, name: c.name, category: c.category, image: c.image, custom: true };
+        masterInventory.push(item);
+      }
+      if (!state.products.some(p => p.id === id)) {
+        state.products.push({ id, wontUse:false, lowStock:false });
+      }
+      saveState();
+      b.textContent = '登録済み';
+      b.disabled = true;
+      b.classList.add('opacity-60');
+      render();
+    });
+  });
+}
 
-    render();
-  }
 
 function inventoryCardHTML(item){
   const prodState = state.products.find(p => p.id === item.id) || {};
@@ -678,6 +687,7 @@ function inventoryCardHTML(item){
 
 </body>
 </html>
+
 
 
 
