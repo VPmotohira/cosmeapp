@@ -83,197 +83,676 @@
         <div id="modal-container"></div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const masterInventory = [
-                { id: 'item1', category: 'クレンジング', name: 'シュウ ウエムラ', image: 'https://placehold.co/100x100/A67B5B/FFFFFF?text=S', reason: { type: 'info', text: '💄 メイクありのため' } },
-                { id: 'item2', category: '洗顔', name: 'B.A ウォッシュ N', image: 'https://placehold.co/100x100/1A1A1A/FFFFFF?text=B.A' },
-                { id: 'item3', category: '酵素洗顔', name: 'スイサイ', image: 'https://placehold.co/100x100/63C3C3/FFFFFF?text=SU', schedule: { type: 'weekly', days: [2, 5] }, reason: { type: 'warning', text: '⚠️ 肌荒れ時はOFF' } },
-                { id: 'item4', category: '化粧水', name: 'オルビスユー', image: 'https://placehold.co/100x100/368CCB/FFFFFF?text=O' },
-                { id: 'item5', category: '美容液', name: 'ランコム ジェニフィック', image: 'https://placehold.co/100x100/2D2D2D/FFFFFF?text=L', reason: { type: 'info', text: '🛡️ 肌荒れケア' } },
-                { id: 'item6', category: '乳液', name: 'SK-II スキンパワー', image: 'https://placehold.co/100x100/C9002B/FFFFFF?text=SK' },
-                { id: 'item7', category: '日焼け止め', name: 'アネッサ', image: 'https://placehold.co/100x100/F2BE22/FFFFFF?text=AN', reason: { type: 'info', text: '☀️ 外出ありのため' } },
-            ];
-            const pastRecipes = [{ date: '2025年9月27日 (土)', mode: '「静かな湖」', comment: '自分を甘やかす日！', routine: '夜のお手入れ 🌙', items: ['item1', 'item2', 'item4', 'item6'] }];
-            const state = {
-                currentScreen: 'main',
-                dailyConditions: JSON.parse(localStorage.getItem('dailyConditions')) || { skin: 'normal', makeup: 'no', outing: 'no', details: [] },
-                skinHistory: { '2025-9-22': 'normal', '2025-9-23': 'bad', '2025-9-24': 'normal', '2025-9-25': 'normal', '2025-9-26': 'good', '2025-9-27': 'good', '2025-9-28': 'normal' }
-            };
+<script>
+/**
+ * 美肌ロジック – HTML単一ファイル版 拡張スクリプト
+ * 追加した主な機能：
+ * - 「レシピを反映」ボタン（昨日／保存済み／履歴から選択）
+ * - アイテム増減（当日だけ反映）
+ * - 所要時間の合算表示（AM/PM）
+ * - 理由（why）タップ表示
+ * - 製品の「開始からN日」ツールチップ
+ * - 不足カテゴリの提案（必要時のみ表示）
+ * - localStorageに today / history / savedRecipes を保存
+ */
 
-            const dom = {
-                headerTitle: document.getElementById('header-title'),
-                dateElement: document.getElementById('current-date'),
-                nav: document.querySelector('nav'),
-                main: document.querySelector('main'),
-                modalContainer: document.getElementById('modal-container'),
-            };
+document.addEventListener('DOMContentLoaded', () => {
+  /* ========== 初期データ（既存の masterInventory は流用） ========== */
+  const masterInventory = [
+    { id: 'item1', category: 'クレンジング', name: 'シュウ ウエムラ', image: 'https://placehold.co/100x100/A67B5B/FFFFFF?text=S', tags: ['makeup'] },
+    { id: 'item2', category: '洗顔', name: 'B.A ウォッシュ N', image: 'https://placehold.co/100x100/1A1A1A/FFFFFF?text=B.A' },
+    { id: 'item3', category: '酵素洗顔', name: 'スイサイ', image: 'https://placehold.co/100x100/63C3C3/FFFFFF?text=SU', schedule: { type: 'weekly', days: [2, 5] }, tags: ['enzyme'], reason: { type: 'warning', text: '⚠️ 肌荒れ時はOFF' } },
+    { id: 'item4', category: '化粧水', name: 'オルビスユー', image: 'https://placehold.co/100x100/368CCB/FFFFFF?text=O' },
+    { id: 'item5', category: '美容液', name: 'ランコム ジェニフィック', image: 'https://placehold.co/100x100/2D2D2D/FFFFFF?text=L', reason: { type: 'info', text: '🛡️ 肌荒れケア' } },
+    { id: 'item6', category: '乳液', name: 'SK-II スキンパワー', image: 'https://placehold.co/100x100/C9002B/FFFFFF?text=SK' },
+    { id: 'item7', category: '日焼け止め', name: 'アネッサ', image: 'https://placehold.co/100x100/F2BE22/FFFFFF?text=AN', tags: ['spf'], reason: { type: 'info', text: '☀️ 外出ありのため' } },
+  ];
 
-            function initialize() {
-                displayDate();
-                dom.nav.addEventListener('click', (e) => {
-                    const button = e.target.closest('button');
-                    if (button) { state.currentScreen = button.dataset.screen; renderCurrentScreen(); }
-                });
-                renderCurrentScreen();
-            }
+  /* ========== 所要時間のデフォルト（分） ========== */
+  const DURATION_MIN = {
+    'クレンジング': 2, '洗顔': 1, '化粧水': 1, '美容液': 1, '乳液': 1, '日焼け止め': 1, '酵素洗顔': 2
+  };
 
-            function renderCurrentScreen() {
-                dom.main.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-                dom.nav.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                let activeScreen = document.getElementById(`${state.currentScreen}-screen`);
-                if (!activeScreen) {
-                    activeScreen = document.createElement('div');
-                    activeScreen.id = `${state.currentScreen}-screen`;
-                    activeScreen.className = 'screen';
-                    dom.main.appendChild(activeScreen);
-                }
-                const activeButton = document.querySelector(`nav button[data-screen="${state.currentScreen}"]`);
-                activeScreen.classList.add('active');
-                activeButton.classList.add('active');
-                dom.headerTitle.innerHTML = { main: `今日の<span class="accent">レシピ</span>`, schedule: 'スケジュール', inventory: 'コスメ一覧', diary: 'ダイアリー', account: 'アカウント' }[state.currentScreen];
-                const renderFunction = { main: renderMainScreen, schedule: renderScheduleScreen, inventory: renderInventoryScreen, diary: renderDiaryScreen, account: renderAccountScreen }[state.currentScreen];
-                renderFunction(activeScreen);
-            }
+  /* ========== 状態（localStorage 永続化） ========== */
+  const LS_KEY = 'skincare.app.v1';
 
-            function renderMainScreen(container) {
-                container.innerHTML = `
-                    <div class="condition-chips">
-                        <div class="chip-group"><label>肌:</label><div class="chips" data-group="skin"><button data-value="bad">荒れ</button><button data-value="normal">普通</button><button data-value="good">良い</button></div><button id="detail-skin-btn" class="text-xs p-1 ml-1 rounded-full bg-gray-200 w-6 h-6">+</button></div>
-                        <div class="chip-group"><label>メイク:</label><div class="chips" data-group="makeup"><button data-value="yes">あり</button><button data-value="no">なし</button></div></div>
-                        <div class="chip-group"><label>外出:</label><div class="chips" data-group="outing"><button data-value="yes">あり</button><button data-value="no">なし</button></div></div>
-                    </div>
-                    <div id="recalculating-feedback" class="text-center text-sm text-gray-500 mb-4 h-5 transition-opacity duration-300"></div>
-                    <div id="manual-container"></div>`;
-                container.querySelectorAll('.chips').forEach(div => {
-                    div.addEventListener('click', (e) => {
-                        if (e.target.tagName === 'BUTTON') {
-                            state.dailyConditions[e.currentTarget.dataset.group] = e.target.dataset.value;
-                            localStorage.setItem('dailyConditions', JSON.stringify(state.dailyConditions));
-                            updateConditionUI();
-                            showRecalculatingFeedbackAndRender();
-                        }
-                    });
-                });
-                container.querySelector('#detail-skin-btn').addEventListener('click', showDetailSkinModal);
-                updateConditionUI();
-                renderManual();
-            }
+  /** @type {{
+   *  dailyConditions: { skin:'bad'|'normal'|'good', makeup:'yes'|'no', outing:'yes'|'no' },
+   *  products: Array<{id:string, startDate?:string}>,
+   *  savedRecipes: Array<Recipe>,
+   *  history: Array<Recipe>,          // 過去確定レシピ（最新が先頭）
+   *  today?: DayInstance
+   * }} */
+  let state = loadState() || initState();
 
-            function renderScheduleScreen(container) {
-                container.innerHTML = `<div class="card"><h2>肌コンディション履歴</h2><div id="skin-condition-chart" class="line-chart-container"></div></div><div class="card"><h2>週間スケジュール</h2><div id="schedule-view"></div></div>`;
-                renderSkinConditionChart();
-                renderWeeklySchedule();
-            }
-            
-            function renderInventoryScreen(container) {
-                 const itemsHTML = masterInventory.map(item => `<div class="text-center"><img src="${item.image}" alt="${item.name}" class="w-24 h-24 rounded-lg mx-auto shadow-md mb-2 border-2 border-white"><p class="font-bold text-sm">${item.name}</p><p class="text-xs text-gray-500">${item.category}</p></div>`).join('');
-                container.innerHTML = `<div class="card"><h2>マイコスメ</h2><div class="grid grid-cols-3 sm:grid-cols-4 gap-4 mt-4">${itemsHTML}</div></div>`;
-            }
-            
-            function renderDiaryScreen(container) {
-                const diaryHTML = pastRecipes.map(recipe => {
-                    const itemImages = recipe.items.map(itemId => `<img src="${masterInventory.find(i => i.id === itemId).image}" class="w-10 h-10 rounded-full object-cover border-2 border-white -ml-2 first:ml-0">`).join('');
-                    return `<div class="bg-white rounded-2xl shadow-lg p-5 mb-6"><p class="text-sm font-semibold text-gray-400 mb-2">${recipe.date}</p><h3 class="text-xl font-bold mb-3" style="color: var(--ink-primary);">肌モード: ${recipe.mode}</h3>${recipe.comment ? `<div class="p-3 bg-gray-50 rounded-lg text-center mb-4"><p class="font-semibold" style="font-family: var(--handwriting-font); font-size: 1.2rem; color: #57534E;">"${recipe.comment}"</p></div>` : ''}<div class="border-t border-gray-100 pt-3"><p class="text-xs font-bold text-gray-400 mb-2">${recipe.routine}</p><div class="flex items-center pl-2">${itemImages}</div></div></div>`;
-                }).join('');
-                container.innerHTML = `<div>${diaryHTML}</div>`;
-            }
+  function initState() {
+    const todayISO = isoDate(new Date());
+    return {
+      dailyConditions: { skin: 'normal', makeup: 'no', outing: 'no' },
+      products: masterInventory.map(p => ({ id: p.id, startDate: undefined })), // 最初は開始日なし
+      savedRecipes: [], // ユーザーが明示保存したレシピ
+      history: [],      // 過去の当日確定レシピ
+      today: {
+        date: todayISO,
+        conditions: { skin: 'normal', makeup: 'no', outing: 'no' },
+        // 当日のレシピ（AM/PM）は起動時に自動生成
+        am: [], pm: [],
+        overrides: { amRemove: [], pmRemove: [], amAdd: [], pmAdd: [] }, // 当日だけの増減
+        whyMap: {} // stepId -> string
+      }
+    };
+  }
 
-            function renderAccountScreen(container) { container.innerHTML = `<div class="card"><h2>アカウント</h2><p>開発中です。</p></div>`; }
+  function saveState() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+  function loadState() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY)); } catch { return null; }
+  }
 
-            function renderManual() {
-                const container = document.getElementById('manual-container');
-                if (!container) return;
-                const morningItems = getRoutineItemsFor('morning');
-                const eveningItems = getRoutineItemsFor('evening');
-                container.innerHTML = createRoutineSectionHTML('☀️ 朝のレシピ', morningItems) + createRoutineSectionHTML('🌙 夜のレシピ', eveningItems);
-            }
+  /* ========== DOM参照 ========== */
+  const dom = {
+    headerTitle: document.getElementById('header-title'),
+    dateElement: document.getElementById('current-date'),
+    nav: document.querySelector('nav'),
+    main: document.querySelector('main'),
+    modalContainer: document.getElementById('modal-container'),
+  };
 
-            function createRoutineSectionHTML(title, items) {
-                if (items.length === 0) return '';
-                const itemsHTML = items.map(item => createTaskItemHTML(item)).join('');
-                const progressText = `0 / ${items.length} ステップ完了`;
-                return `<div class="card p-5 mb-4"><div class="recipe-header"><h3 class="font-bold text-lg">${title}</h3><div class="text-xs text-gray-400">昨日 + 美容液</div></div><p class="text-sm text-gray-500 mb-4">${progressText}</p>${itemsHTML}<div class="flex gap-2 mt-4"><button class="btn-secondary w-full text-sm">一括完了</button><button class="btn-primary w-full text-sm">このレシピをシェア</button></div></div>`;
-            }
+  /* ========== 初期化 ========== */
+  initialize();
 
-            function createTaskItemHTML(item) {
-                let reasonHTML = '';
-                if (item.reason) {
-                    const { skin, makeup, outing } = state.dailyConditions;
-                    if ((makeup === 'yes' && item.reason.text.includes('メイク')) || (outing === 'yes' && item.reason.text.includes('外出'))) {
-                        reasonHTML = `<div class="reason-badge info">${item.reason.text}</div>`;
-                    } else if (skin === 'bad' && item.reason.text.includes('肌荒れケア')) {
-                        reasonHTML = `<div class="reason-badge info">${item.reason.text}</div>`;
-                    } else if (skin === 'bad' && item.reason.text.includes('肌荒れ時はOFF')) {
-                         reasonHTML = `<div class="reason-badge warning">${item.reason.text}</div>`;
-                    }
-                }
-                return `<div class="task-item"><input type="checkbox" class="task-checkbox"><img src="${item.image}" alt="${item.name}" class="w-12 h-12 rounded-lg"><div class="flex-grow ml-4"><p class="font-bold text-sm">${item.name}</p><p class="text-xs text-gray-500">${item.category}</p>${reasonHTML}</div></div>`;
-            }
-            
-            function renderSkinConditionChart() {
-                const chartContainer = document.getElementById('skin-condition-chart');
-                if (!chartContainer) return;
-                const dataPoints = [];
-                for (let i = -6; i <= 0; i++) {
-                    const date = new Date(); date.setDate(new Date().getDate() + i);
-                    const dateKey = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-                    dataPoints.push({ label: `${date.getDate()}日`, condition: state.skinHistory[dateKey] || 'normal' });
-                }
-                const width = chartContainer.clientWidth;
-                const height = 180; chartContainer.style.height = `${height}px`;
-                const padding = { top: 20, right: 20, bottom: 30, left: 20 };
-                const chartWidth = width - padding.left - padding.right;
-                const chartHeight = height - padding.top - padding.bottom;
-                const conditionToY = { 'good': 0, 'normal': chartHeight / 2, 'bad': chartHeight };
-                const points = dataPoints.map((dp, i) => ({ x: (chartWidth / (dataPoints.length - 1)) * i, y: conditionToY[dp.condition], condition: dp.condition, label: dp.label }));
-                const pathData = points.map((p, i) => (i === 0 ? 'M' : 'L') + `${p.x} ${p.y}`).join(' ');
-                chartContainer.innerHTML = `<svg width="100%" height="100%" viewBox="0 0 ${width} ${height}"><g transform="translate(${padding.left}, ${padding.top})"><line x1="0" y1="0" x2="${chartWidth}" y2="0" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="2,2"></line><line x1="0" y1="${chartHeight / 2}" x2="${chartWidth}" y2="${chartHeight/2}" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="2,2"></line><line x1="0" y1="${chartHeight}" x2="${chartWidth}" y2="${chartHeight}" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="2,2"></line><path d="${pathData}" stroke="${getComputedStyle(document.documentElement).getPropertyValue('--brand-accent')}" stroke-width="2.5" fill="none" /><g>${points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="5" fill="${{good: getComputedStyle(document.documentElement).getPropertyValue('--success-color'), normal: getComputedStyle(document.documentElement).getPropertyValue('--warning-color'), bad: getComputedStyle(document.documentElement).getPropertyValue('--danger-color')}[p.condition]}" stroke="white" stroke-width="2" /><text x="${p.x}" y="${chartHeight + 20}" text-anchor="middle" font-size="12" fill="#777">${p.label}</text>`).join('')}</g></g></svg>`;
-            }
+  function initialize() {
+    displayDate();
+    rolloverIfNeeded();
+    dom.nav.addEventListener('click', onNavClick);
+    renderCurrentScreen();
+  }
 
-            function renderWeeklySchedule() {
-                const container = document.getElementById('schedule-view');
-                if (!container) return;
-                let html = '';
-                const today = new Date();
-                const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
-                for (let i = 0; i < 7; i++) {
-                    const date = new Date(today);
-                    date.setDate(today.getDate() - today.getDay() + i);
-                    const isToday = date.toDateString() === today.toDateString();
-                    const scheduledItems = masterInventory.filter(item => item.schedule?.days.includes(date.getDay()) && !item.wontUse);
-                    html += `<div class="schedule-day"><div class="day-header ${isToday ? 'is-today' : ''}">${weekDays[i]}</div><ul>${scheduledItems.length > 0 ? scheduledItems.map(item => `<li>✨</li>`).join('') : ''}</ul></div>`;
-                }
-                container.innerHTML = html;
-            }
+  /* ========== 画面切替 ========== */
+  function onNavClick(e) {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const screen = btn.dataset.screen;
+    dom.main.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    dom.nav.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    const activeScreen = document.getElementById(`${screen}-screen`);
+    activeScreen.classList.add('active');
+    btn.classList.add('active');
+    dom.headerTitle.innerHTML = ({
+      main: `今日の<span class="accent">レシピ</span>`,
+      schedule: 'スケジュール', inventory: 'コスメ一覧', diary: 'ダイアリー', account: 'アカウント'
+    })[screen];
+    ({
+      main: renderMainScreen, schedule: renderScheduleScreen, inventory: renderInventoryScreen,
+      diary: renderDiaryScreen, account: renderAccountScreen
+    })[screen](activeScreen);
+  }
 
-            function updateConditionUI() { const container = document.getElementById('main-screen'); if (!container) return; container.querySelectorAll('.chips').forEach(div => { div.querySelectorAll('button').forEach(btn => { btn.classList.toggle('selected', btn.dataset.value === state.dailyConditions[div.dataset.group]); }); }); }
-            function showRecalculatingFeedbackAndRender() { const feedbackEl = document.getElementById('recalculating-feedback'); if(!feedbackEl) return; feedbackEl.textContent = 'レシピを再計算中...'; setTimeout(() => { feedbackEl.textContent = ''; renderManual(); }, 300); }
-            function showDetailSkinModal() { alert('詳細設定は開発中です'); }
-            function getRoutineItemsFor(time) {
-                let items = [];
-                const { skin, makeup, outing } = state.dailyConditions;
-                if (time === 'morning') {
-                    items.push(masterInventory.find(i => i.id === 'item2'));
-                    items.push(masterInventory.find(i => i.id === 'item4'));
-                    if (skin === 'bad') items.push(masterInventory.find(i => i.id === 'item5'));
-                    items.push(masterInventory.find(i => i.id === 'item6'));
-                    if (outing === 'yes') items.push(masterInventory.find(i => i.id === 'item7'));
-                } else {
-                    if (makeup === 'yes') items.push(masterInventory.find(i => i.id === 'item1'));
-                    if (skin !== 'bad' && new Date().getDay() % 3 === 0) items.push(masterInventory.find(i => i.id === 'item3'));
-                    else items.push(masterInventory.find(i => i.id === 'item2'));
-                    items.push(masterInventory.find(i => i.id === 'item4'));
-                    if (skin === 'bad') items.push(masterInventory.find(i => i.id === 'item5'));
-                    items.push(masterInventory.find(i => i.id === 'item6'));
-                }
-                return items.filter(Boolean);
-            }
-            function displayDate() { const today = new Date(); dom.dateElement.textContent = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`; }
-            
-            initialize();
+  function renderCurrentScreen() {
+    // 初期は main
+    document.querySelector('button[data-screen="main"]').click();
+  }
+
+  /* ========== メイン（ホーム） ========== */
+  function renderMainScreen(container) {
+    container.innerHTML = `
+      <div class="condition-chips">
+        <div class="chip-group">
+          <label>肌:</label>
+          <div class="chips" data-group="skin">
+            <button data-value="bad">荒れ</button>
+            <button data-value="normal">普通</button>
+            <button data-value="good">良い</button>
+          </div>
+          <button id="detail-skin-btn" class="text-xs p-1 ml-1 rounded-full bg-gray-200 w-6 h-6">+</button>
+        </div>
+        <div class="chip-group"><label>メイク:</label>
+          <div class="chips" data-group="makeup"><button data-value="yes">あり</button><button data-value="no">なし</button></div>
+        </div>
+        <div class="chip-group"><label>外出:</label>
+          <div class="chips" data-group="outing"><button data-value="yes">あり</button><button data-value="no">なし</button></div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 mb-3">
+        <button id="apply-recipe-btn" class="btn-primary">レシピを反映</button>
+        <button id="save-as-recipe-btn" class="btn-secondary">このレシピを保存</button>
+      </div>
+
+      <div id="recalculating-feedback" class="text-center text-sm text-gray-500 mb-4 h-5"></div>
+
+      <div id="suggestion-card" class="hidden card text-sm"></div>
+
+      <div id="manual-container"></div>
+
+      <!-- モーダル置き場 -->
+      <div id="apply-recipe-modal" class="hidden fixed inset-0 bg-black/30 flex items-end sm:items-center sm:justify-center z-50">
+        <div class="bg-white w-full sm:w-[520px] rounded-t-2xl sm:rounded-2xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg font-semibold">今日のレシピを選ぶ</h3>
+            <button id="close-apply-modal" class="text-gray-500 text-lg">✕</button>
+          </div>
+          <div class="space-y-3">
+            <button id="apply-yesterday" class="w-full btn-primary">昨日のレシピを反映</button>
+            <div class="mt-2">
+              <div class="flex gap-2 mb-2">
+                <button id="tab-saved" class="px-3 py-1 rounded bg-gray-100 text-sm">保存済み</button>
+                <button id="tab-history" class="px-3 py-1 rounded bg-gray-100 text-sm">履歴</button>
+              </div>
+              <div id="list-saved" class="space-y-2"></div>
+              <div id="list-history" class="space-y-2 hidden"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="why-modal" class="hidden fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+        <div class="bg-white w-[90%] sm:w-[480px] rounded-2xl p-4">
+          <div id="why-text" class="text-sm"></div>
+          <div class="text-right mt-3"><button id="close-why" class="btn-primary">OK</button></div>
+        </div>
+      </div>
+    `;
+
+    // 状態チップの選択反映
+    container.querySelectorAll('.chips').forEach(div => {
+      div.querySelectorAll('button').forEach(btn => {
+        const group = div.dataset.group;
+        btn.classList.toggle('selected', btn.dataset.value === state.dailyConditions[group]);
+      });
+      div.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'BUTTON') return;
+        state.dailyConditions[div.dataset.group] = e.target.dataset.value;
+        if (state.today) state.today.conditions = { ...state.dailyConditions };
+        saveState();
+        showRecalc(() => {
+          // ルール再適用
+          recalcTodayByRules();
+          renderManual();
         });
-    </script>
+        // UI更新
+        div.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+        e.target.classList.add('selected');
+      });
+    });
+
+    // レシピ反映モーダル
+    container.querySelector('#apply-recipe-btn').addEventListener('click', openApplyModal);
+    container.querySelector('#save-as-recipe-btn').addEventListener('click', onSaveCurrentAsRecipe);
+
+    // 初回レンダリング
+    if (!state.today || !state.today.am.length && !state.today.pm.length) {
+      // 当日のデフォルトを生成（条件ベース）
+      state.today = makeTodayFromRules();
+      saveState();
+    }
+    renderManual();
+    refreshSuggestionCard();
+  }
+
+  /* ========== レンダリング（手順） ========== */
+  function renderManual() {
+    const container = document.getElementById('manual-container');
+    if (!container || !state.today) return;
+
+    // 合計時間算出
+    const { amMinutes, pmMinutes } = calcDurations(state.today);
+    const amHTML = createRoutineSectionHTML('☀️ 朝のレシピ', state.today.am, amMinutes, 'AM');
+    const pmHTML = createRoutineSectionHTML('🌙 夜のレシピ', state.today.pm, pmMinutes, 'PM');
+    container.innerHTML = amHTML + pmHTML;
+
+    // 追加/外す/whyイベント
+    container.querySelectorAll('[data-action="add-step"]').forEach(b => {
+      b.addEventListener('click', () => onAddStep(b.dataset.time));
+    });
+    container.querySelectorAll('[data-action="remove-today"]').forEach(b => {
+      b.addEventListener('click', () => onRemoveToday(b.dataset.time, b.dataset.id));
+    });
+    container.querySelectorAll('[data-action="why"]').forEach(b => {
+      b.addEventListener('click', () => openWhy(b.dataset.id));
+    });
+  }
+
+  function createRoutineSectionHTML(title, steps, minutes, timeOfDay) {
+    // 非表示(hidden)は描画しない
+    const visibleSteps = steps.filter(s => !s.hidden);
+    const listHTML = visibleSteps.map(s => taskRowHTML(s, timeOfDay)).join('');
+    return `
+      <div class="card p-5 mb-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-lg">${title}</h3>
+          <span class="text-xs text-gray-500">本日の目安：${minutes}分</span>
+        </div>
+        <ul class="mt-3 space-y-2">${listHTML || `<li class="text-sm text-gray-400">今日は表示するステップがありません</li>`}</ul>
+        <div class="mt-4">
+          <button class="btn-secondary w-full text-sm" data-action="add-step" data-time="${timeOfDay}">＋ ステップを追加</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function taskRowHTML(step, timeOfDay) {
+    const p = masterInventory.find(i => i.id === step.productId);
+    const name = p ? p.name : step.stepType;
+    const cate = p ? p.category : step.stepType;
+    const img = p?.image || 'https://placehold.co/100x100/cccccc/FFFFFF?text=..';
+    const startDate = state.products.find(x => x.id === p?.id)?.startDate;
+    const daysSince = startDate ? daysBetween(new Date(startDate), new Date()) : null;
+    const tip = daysSince != null ? `開始から${daysSince}日` : '';
+    const reason = step.why ? `<div class="reason-badge info">${step.why}</div>` : '';
+
+    return `
+      <li class="task-item">
+        <input type="checkbox" class="task-checkbox" />
+        <img src="${img}" alt="${name}" class="w-12 h-12 rounded-lg" />
+        <div class="flex-grow ml-4">
+          <p class="font-bold text-sm">
+            <span class="step-name">${name}</span>
+            ${tip ? `<span class="ml-2 text-[10px] text-gray-500 border rounded px-1">${tip}</span>` : ''}
+          </p>
+          <p class="text-xs text-gray-500">${cate}</p>
+          ${reason}
+        </div>
+        <div class="flex gap-2">
+          <button class="text-xs px-2 py-1 border rounded" data-action="why" data-id="${step.id}">i</button>
+          <button class="text-xs px-2 py-1 border rounded" data-action="remove-today" data-time="${timeOfDay}" data-id="${step.id}">今日だけ外す</button>
+        </div>
+      </li>
+    `;
+  }
+
+  /* ========== ルール適用（当たり前ルール） ========== */
+  function makeTodayFromRules() {
+    const date = isoDate(new Date());
+    // ベース（AM/PM）: 既存の getRoutineItemsFor の中身を、ステップ配列で作る
+    const baseAM = [
+      asStep('洗顔', 'item2', 'AM'),
+      asStep('化粧水', 'item4', 'AM'),
+      asStep('乳液', 'item6', 'AM'),
+      // 日焼け止めは条件で後付け
+    ];
+    const basePM = [
+      // クレンジングは条件で先頭に
+      maybeAsStep('酵素洗顔', 'item3', 'PM'), // 条件で隠す
+      asStep('洗顔', 'item2', 'PM'),
+      asStep('化粧水', 'item4', 'PM'),
+      // 肌荒れ時は美容液を足す
+      asStep('乳液', 'item6', 'PM'),
+    ];
+
+    /** @type {DayInstance} */
+    const today = {
+      date, conditions: { ...state.dailyConditions },
+      am: baseAM, pm: basePM,
+      overrides: { amRemove: [], pmRemove: [], amAdd: [], pmAdd: [] },
+      whyMap: {}
+    };
+    applyRulesInPlace(today);
+    return today;
+  }
+
+  function recalcTodayByRules() {
+    if (!state.today) return;
+    // ベースに戻すのではなく、「現在の today に対して hidden/why の再計算」を行う
+    applyRulesInPlace(state.today);
+    saveState();
+    refreshSuggestionCard();
+  }
+
+  function applyRulesInPlace(day) {
+    // 1) 初期化：hidden/why クリア
+    [...day.am, ...day.pm].forEach(s => { s.hidden = false; if (!day.whyMap[s.id]) s.why = undefined; });
+
+    const cond = day.conditions;
+    const productsHave = (category) => state.products.some(p => {
+      const m = masterInventory.find(mi => mi.id === p.id);
+      return m && m.category === category;
+    });
+
+    // 2) ルール：外出→AMに日焼け止め必須
+    if (cond.outing === 'yes') {
+      const hasSPF = day.am.some(s => masterInventory.find(mi => mi.id === s.productId)?.category === '日焼け止め' && !s.hidden);
+      if (!hasSPF) {
+        // マイ製品に日焼け止めがあれば追加、なければ不足提案へ
+        const ownedSPF = state.products.map(x => x.id).map(id => masterInventory.find(m => m.id === id))
+          .find(m => m?.category === '日焼け止め');
+        if (ownedSPF) {
+          day.am.push(asStep('日焼け止め', ownedSPF.id, 'AM', '外出のため追加しました'));
+        } // なければ suggestionCard 側で検知
+      }
+    }
+
+    // 3) ルール：メイク→PM先頭にクレンジング必須
+    if (cond.makeup === 'yes') {
+      const hasCleanse = day.pm.some(s => masterInventory.find(mi => mi.id === s.productId)?.category === 'クレンジング' && !s.hidden);
+      if (!hasCleanse) {
+        const ownedCLR = state.products.map(x => x.id).map(id => masterInventory.find(m => m.id === id))
+          .find(m => m?.category === 'クレンジング');
+        if (ownedCLR) {
+          day.pm.unshift(asStep('クレンジング', ownedCLR.id, 'PM', 'メイクしているため追加しました'));
+        }
+      }
+    }
+
+    // 4) ルール：肌荒れ→酵素/強めは隠す、鎮静系はwhyを付ける
+    if (cond.skin === 'bad') {
+      const hideTags = ['enzyme', 'acid', 'retinoid'];
+      [...day.am, ...day.pm].forEach(s => {
+        const prod = masterInventory.find(mi => mi.id === s.productId);
+        if (!prod) return;
+        const tags = prod.tags || [];
+        if (tags.some(t => hideTags.includes(t)) || prod.category === '酵素洗顔') {
+          s.hidden = true;
+          s.why = '肌が荒れているため外しています';
+        }
+        if (prod.category === '美容液') {
+          s.why = s.why || '肌荒れケアのため表示しています';
+        }
+      });
+    }
+
+    // 5) overrides（当日だけの増減）を反映
+    day.am.forEach(s => { if (day.overrides.amRemove.includes(s.id)) s.hidden = true; });
+    day.pm.forEach(s => { if (day.overrides.pmRemove.includes(s.id)) s.hidden = true; });
+
+    // 6) 不足カテゴリの検知は UI 側で行う
+  }
+
+  /* ========== ユーティリティ：ステップ生成・所要時間算出 ========== */
+  function uuid() { return Math.random().toString(36).slice(2, 10); }
+  function asStep(stepType, productId, tod, why) {
+    const prod = masterInventory.find(i => i.id === productId);
+    return {
+      id: uuid(), timeOfDay: tod, order: 0, stepType,
+      productId, durationMin: DURATION_MIN[prod?.category || stepType] || 1, hidden: false, why
+    };
+  }
+  function maybeAsStep(stepType, productId, tod) {
+    const prod = masterInventory.find(i => i.id === productId);
+    if (!prod) return null;
+    return asStep(stepType, productId, tod);
+  }
+
+  function calcDurations(day) {
+    const sum = (arr) => arr.filter(s => !s.hidden).reduce((acc, s) => acc + (s.durationMin || 1), 0);
+    return { amMinutes: sum(day.am), pmMinutes: sum(day.pm) };
+  }
+
+  /* ========== 当日だけの増減 ========== */
+  function onRemoveToday(tod, stepId) {
+    if (!state.today) return;
+    const key = tod === 'AM' ? 'amRemove' : 'pmRemove';
+    if (!state.today.overrides[key].includes(stepId)) state.today.overrides[key].push(stepId);
+    saveState();
+    renderManual();
+  }
+
+  function onAddStep(tod) {
+    // シンプルな追加UI：カテゴリを選び、所有製品から選ぶ
+    const category = prompt(`追加するカテゴリを入力してください（例：美容液, 乳液, 日焼け止め, 洗顔, クレンジング, 酵素洗顔, 化粧水）`);
+    if (!category) return;
+    const owned = state.products
+      .map(x => masterInventory.find(m => m.id === x.id))
+      .filter(Boolean)
+      .filter(m => m.category === category.trim());
+    if (!owned.length) {
+      alert(`「${category}」の登録がありません。コスメ一覧から追加してください。`);
+      return;
+    }
+    const names = owned.map((m, i) => `${i + 1}: ${m.name}`).join('\n');
+    const pick = prompt(`追加する製品を選んでください：\n${names}`);
+    const idx = Number(pick) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= owned.length) return;
+    const chosen = owned[idx];
+    const step = asStep(chosen.category, chosen.id, tod, '手動で追加しました');
+    if (tod === 'AM') state.today.am.push(step); else state.today.pm.push(step);
+    saveState();
+    renderManual();
+  }
+
+  /* ========== レシピ保存・反映（昨日／保存済み／履歴） ========== */
+  function openApplyModal() {
+    const modal = document.getElementById('apply-recipe-modal');
+    modal.classList.remove('hidden');
+    document.getElementById('close-apply-modal').onclick = () => modal.classList.add('hidden');
+
+    // 昨日の反映
+    const btnYesterday = document.getElementById('apply-yesterday');
+    const yesterday = state.history[0]; // 最新の履歴＝昨日想定
+    btnYesterday.disabled = !yesterday;
+    btnYesterday.classList.toggle('opacity-50', !yesterday);
+    btnYesterday.onclick = () => {
+      if (!yesterday) return;
+      state.today = dayFromRecipe(yesterday);
+      state.today.date = isoDate(new Date());
+      saveState();
+      modal.classList.add('hidden');
+      renderManual();
+      refreshSuggestionCard();
+    };
+
+    // タブ切替
+    const tabSaved = document.getElementById('tab-saved');
+    const tabHistory = document.getElementById('tab-history');
+    const listSaved = document.getElementById('list-saved');
+    const listHistory = document.getElementById('list-history');
+
+    function renderSaved() {
+      listSaved.innerHTML = (state.savedRecipes || []).map(r => recipeRow(r, () => {
+        state.today = dayFromRecipe(r);
+        state.today.date = isoDate(new Date());
+        saveState();
+        modal.classList.add('hidden');
+        renderManual();
+        refreshSuggestionCard();
+      })).join('') || `<p class="text-sm text-gray-500">保存済みレシピがありません</p>`;
+    }
+    function renderHistory() {
+      const items = (state.history || []).slice(0, 10);
+      listHistory.innerHTML = items.map(r => recipeRow(r, () => {
+        state.today = dayFromRecipe(r);
+        state.today.date = isoDate(new Date());
+        saveState();
+        modal.classList.add('hidden');
+        renderManual();
+        refreshSuggestionCard();
+      })).join('') || `<p class="text-sm text-gray-500">履歴がありません</p>`;
+    }
+    function activate(tab) {
+      if (tab === 'saved') {
+        listSaved.classList.remove('hidden'); listHistory.classList.add('hidden');
+      } else {
+        listSaved.classList.add('hidden'); listHistory.classList.remove('hidden');
+      }
+    }
+
+    tabSaved.onclick = () => { activate('saved'); };
+    tabHistory.onclick = () => { activate('history'); };
+
+    renderSaved();
+    renderHistory();
+    activate('saved');
+  }
+
+  function recipeRow(r, onApply) {
+    const when = (r.createdAt || '').slice(0, 10);
+    const name = r.name || '無題レシピ';
+    const steps = (r.am?.filter(s=>!s.hidden).length || 0) + (r.pm?.filter(s=>!s.hidden).length || 0);
+    return `
+      <div class="flex items-center justify-between border rounded p-2">
+        <div>
+          <div class="text-sm font-medium">${name}</div>
+          <div class="text-xs text-gray-500">${when} / ${steps}ステップ</div>
+        </div>
+        <button class="btn-secondary text-xs" onclick="(${onApply.toString()})()">反映</button>
+      </div>
+    `;
+  }
+
+  function onSaveCurrentAsRecipe() {
+    if (!state.today) return;
+    const name = prompt('このレシピに名前をつけて保存（例：肌荒れ用PM）');
+    const recipe = {
+      id: uuid(),
+      name: name || undefined,
+      createdAt: new Date().toISOString(),
+      am: deepClone(state.today.am),
+      pm: deepClone(state.today.pm)
+    };
+    state.savedRecipes.unshift(recipe);
+    saveState();
+    alert('保存しました');
+  }
+
+  function dayFromRecipe(r) {
+    return {
+      date: isoDate(new Date()),
+      conditions: { ...state.dailyConditions },
+      am: deepClone(r.am), pm: deepClone(r.pm),
+      overrides: { amRemove: [], pmRemove: [], amAdd: [], pmAdd: [] },
+      whyMap: {}
+    };
+  }
+
+  /* ========== 不足カテゴリの提案（必要時のみ） ========== */
+  function refreshSuggestionCard() {
+    const card = document.getElementById('suggestion-card');
+    if (!card || !state.today) return;
+    card.classList.add('hidden');
+    // 必須ロジック：外出→日焼け止め、メイク→クレンジング
+    const need = [];
+    if (state.today.conditions.outing === 'yes') {
+      const hasSPF = state.today.am.some(s => !s.hidden && masterInventory.find(m=>m.id===s.productId)?.category==='日焼け止め');
+      if (!hasSPF) need.push('日焼け止め');
+    }
+    if (state.today.conditions.makeup === 'yes') {
+      const hasCLR = state.today.pm.some(s => !s.hidden && masterInventory.find(m=>m.id===s.productId)?.category==='クレンジング');
+      if (!hasCLR) need.push('クレンジング');
+    }
+    // 所有チェック
+    const lacks = need.filter(cat => !state.products.some(p => masterInventory.find(m => m.id===p.id)?.category===cat));
+    if (!lacks.length) return;
+    const cats = [...new Set(lacks)].join('・');
+    card.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div><strong>${cats}</strong> が未登録です。追加しますか？</div>
+        <button class="btn-primary text-xs" id="add-missing">追加</button>
+      </div>
+    `;
+    card.classList.remove('hidden');
+    document.getElementById('add-missing').onclick = () => {
+      // 簡易：所有に追加（実際は検索モーダルに繋ぐ）
+      const options = masterInventory
+        .filter(m => lacks.includes(m.category))
+        .map((m,i)=>`${i+1}: ${m.category} / ${m.name}`).join('\n');
+      const pick = prompt(`追加する製品を選んでください：\n${options}`);
+      const idx = Number(pick)-1;
+      const pool = masterInventory.filter(m => lacks.includes(m.category));
+      if (!isNaN(idx) && pool[idx]) {
+        if (!state.products.some(p => p.id===pool[idx].id)) state.products.push({ id: pool[idx].id });
+        saveState();
+        recalcTodayByRules();
+        renderManual();
+      }
+    };
+  }
+
+  /* ========== WHY 表示 ========== */
+  function openWhy(stepId) {
+    const modal = document.getElementById('why-modal');
+    const step = [...(state.today?.am||[]), ...(state.today?.pm||[])].find(s => s.id === stepId);
+    const text = step?.why || 'このステップの理由は特にありません。';
+    document.getElementById('why-text').textContent = text;
+    modal.classList.remove('hidden');
+    document.getElementById('close-why').onclick = () => modal.classList.add('hidden');
+  }
+
+  /* ========== 日付跨ぎ（today→history） ========== */
+  function rolloverIfNeeded() {
+    const todayISO = isoDate(new Date());
+    if (!state.today || state.today.date === todayISO) return;
+    // 昨日の確定レシピとして履歴へ保存
+    state.history.unshift({
+      id: uuid(), createdAt: state.today.date + 'T00:00:00Z',
+      am: deepClone(state.today.am), pm: deepClone(state.today.pm)
+    });
+    // 新しい today を作成
+    state.today = makeTodayFromRules();
+    saveState();
+  }
+
+  /* ========== 補助UI（他画面は現状の簡易版） ========== */
+  function renderScheduleScreen(container) {
+    container.innerHTML = `
+      <div class="card"><h2>簡易スケジュール</h2>
+      <p class="text-sm text-gray-500">開発中です</p></div>
+    `;
+  }
+
+  function renderInventoryScreen(container) {
+    const itemsHTML = masterInventory.map(item => {
+      const prodState = state.products.find(p => p.id===item.id);
+      const start = prodState?.startDate || '';
+      return `
+        <div class="border rounded p-3">
+          <img src="${item.image}" class="w-24 h-24 rounded-lg mx-auto mb-2" />
+          <p class="font-bold text-sm text-center">${item.name}</p>
+          <p class="text-xs text-gray-500 text-center">${item.category}</p>
+          <div class="mt-2 text-xs">
+            <label class="block">開始日（任意）
+              <input type="date" value="${start}" data-pid="${item.id}" class="mt-1 w-full border rounded px-2 py-1 text-sm"/>
+            </label>
+          </div>
+        </div>
+      `;
+    }).join('');
+    container.innerHTML = `
+      <div class="card"><h2>マイコスメ</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">${itemsHTML}</div>
+      </div>
+    `;
+    container.querySelectorAll('input[type="date"]').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const pid = inp.dataset.pid;
+        const rec = state.products.find(p => p.id===pid);
+        if (rec) rec.startDate = inp.value || undefined;
+        saveState();
+      });
+    });
+  }
+
+  function renderDiaryScreen(container) {
+    const list = (state.history || []).slice(0, 10);
+    const html = list.map(r => {
+      const steps = (r.am?.filter(s=>!s.hidden).length||0) + (r.pm?.filter(s=>!s.hidden).length||0);
+      return `<div class="border rounded p-3 mb-3">
+        <div class="text-sm font-semibold">${(r.createdAt||'').slice(0,10)}</div>
+        <div class="text-xs text-gray-500">${steps} ステップ</div>
+      </div>`;
+    }).join('') || `<p class="text-sm text-gray-500">まだ履歴がありません</p>`;
+    container.innerHTML = `<div class="card"><h2>ダイアリー</h2>${html}</div>`;
+  }
+
+  function renderAccountScreen(container) {
+    container.innerHTML = `<div class="card"><h2>アカウント</h2><p>サインアップ不要で使えます。</p></div>`;
+  }
+
+  /* ========== 共通ヘルパー ========== */
+  function displayDate() {
+    const today = new Date();
+    const text = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+    document.getElementById('current-date').textContent = text;
+  }
+  function isoDate(d) { return d.toISOString().slice(0, 10); }
+  function daysBetween(a, b) { return Math.floor((+b - +a) / (1000*60*60*24)); }
+  function deepClone(x){ return JSON.parse(JSON.stringify(x)); }
+  function showRecalc(cb){ const el = document.getElementById('recalculating-feedback'); if(!el){cb();return;} el.textContent='レシピを再計算中...'; setTimeout(()=>{ el.textContent=''; cb(); },200); }
+
+  // グローバル（recipeRowの簡易onclick用）
+  window.state = state;
+});
+</script>
+
 </body>
 </html>
+
 
