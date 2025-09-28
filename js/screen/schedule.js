@@ -1,20 +1,12 @@
-import { state } from '../state.js';
-import { masterInventory } from '../data.js';
+// schedule.js
 
-export default function renderScheduleScreen(container) {
-    container.innerHTML = `<div class="card"><h2>肌コンディション履歴</h2><div id="skin-condition-chart" class="line-chart-container"></div></div><div class="card"><h2>週間スケジュール</h2><div id="schedule-view"></div></div>`;
-    renderSkinConditionChart();
-    renderWeeklySchedule();
+function renderScheduleScreen(container) {
+    container.innerHTML = `
+        <div class="card bg-white p-5 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-3">スケジュール</h2>
+            <p class="text-sm text-gray-500">開発中です</p>
+        </div>
+    `;
 }
 
-function renderSkinConditionChart() {
-    const chartContainer = document.getElementById('skin-condition-chart');
-    if (!chartContainer) return;
-    // (chart rendering logic here)
-}
-
-function renderWeeklySchedule() {
-    const container = document.getElementById('schedule-view');
-    if (!container) return;
-    // (schedule rendering logic here)
-}
+export default renderScheduleScreen;
