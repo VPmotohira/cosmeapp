@@ -1,3 +1,6 @@
+console.log('調査開始: main.jsが実行された時点でnav要素は存在するか？ ->', document.querySelector('nav'));
+
+
 import renderMainScreen from './screen/home.js';
 import renderScheduleScreen from './screen/schedule.js';
 import renderInventoryScreen from './screen/inventory.js';
