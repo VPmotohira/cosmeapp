@@ -1,4 +1,4 @@
-import { state } from '../main.js';
+import { state } from '../state.js';
 import { masterInventory } from '../data.js';
 
 export default function renderMainScreen(container) {
@@ -42,8 +42,7 @@ function createRoutineSectionHTML(title, items) {
 }
 
 function createTaskItemHTML(item) {
-    // ... (HTML generation logic)
-    return `<div class="task-item">...</div>`;
+    return `<div class="task-item"><p>${item.name}</p></div>`;
 }
 
 function updateConditionUI() {
@@ -71,14 +70,17 @@ function getRoutineItemsFor(time) {
     const { skin, makeup, outing } = state.dailyConditions;
     if (time === 'morning') {
         items.push(masterInventory.find(i => i.id === 'item2'));
-        items.push(masterInventory.find(i => i.id === 'item4'));
         if (skin === 'bad') items.push(masterInventory.find(i => i.id === 'item5'));
+        items.push(masterInventory.find(i => i.id === 'item4'));
         items.push(masterInventory.find(i => i.id === 'item6'));
         if (outing === 'yes') items.push(masterInventory.find(i => i.id === 'item7'));
     } else {
         if (makeup === 'yes') items.push(masterInventory.find(i => i.id === 'item1'));
-        if (skin !== 'bad' && new Date().getDay() % 3 === 0) items.push(masterInventory.find(i => i.id === 'item3'));
-        else items.push(masterInventory.find(i => i.id === 'item2'));
+        if (skin !== 'bad' && new Date().getDay() % 3 === 0) {
+            items.push(masterInventory.find(i => i.id === 'item3'));
+        } else {
+            items.push(masterInventory.find(i => i.id === 'item2'));
+        }
         items.push(masterInventory.find(i => i.id === 'item4'));
         if (skin === 'bad') items.push(masterInventory.find(i => i.id === 'item5'));
         items.push(masterInventory.find(i => i.id === 'item6'));
