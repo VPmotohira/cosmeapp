@@ -8,7 +8,7 @@ body {
     background-color: #f9fafb; /* bg-gray-50 */
 }
 
-/* ヘッダーとナビゲーションのボタン */
+/* ヘッダーとナビゲーション */
 .nav-button {
     display: flex;
     flex-direction: column;
@@ -18,123 +18,81 @@ body {
     border: none;
     background: transparent;
     cursor: pointer;
-    color: #6b7280; /* text-gray-500 */
+    color: #6b7280;
     transition: color 0.2s ease-in-out;
 }
 .nav-button.active {
-    color: #3b82f6; /* text-blue-500 - 適宜調整してください */
+    color: #3b82f6;
 }
 .nav-button i {
-    font-size: 1.25rem; /* text-xl */
+    font-size: 1.25rem;
 }
 
-/* カードと見出し */
-.card {
-    background-color: white;
-    border-radius: 0.5rem; /* rounded-lg */
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); /* shadow */
-}
+/* 汎用 */
 h2, h3 {
     font-family: var(--heading-font), serif;
     font-weight: 500;
 }
 .accent {
-    color: #bfa77b; /* 仮のアクセントカラー */
+    color: #bfa77b;
 }
 
 /* 画面の表示/非表示 */
 .screen { display: none; }
 .screen.active { display: block; }
 
-/* 汎用ボタン */
-.btn-primary {
-    background-color: #3b82f6;
-    color: white;
-}
-.btn-secondary {
-    background-color: white;
-    color: #3b82f6;
-    border: 1px solid #3b82f6;
-}
+/* --- ここからコスメ一覧画面の新しいスタイル --- */
 
-/* home.js 内のコンポーネント */
-.condition-chips {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem;
-    background-color: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-}
-.chip-group {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-.chip-group label {
-    font-size: 0.875rem;
-    color: #6b7280;
-    min-width: 40px;
-}
-.chips {
-    display: flex;
-}
-.chips button {
-    font-size: 0.875rem;
+/* フィルターとソート */
+.filter-chip {
     padding: 6px 14px;
-    border: 1px solid #d1d5db;
-    background-color: #f9fafb;
-    color: #374151;
-    cursor: pointer;
-}
-.chips button:first-child { border-radius: 9999px 0 0 9999px; }
-.chips button:last-child { border-radius: 0 9999px 9999px 0; }
-.chips button.selected {
-    background-color: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
-}
-.task-checkbox {
-    appearance: none;
-    width: 1.25rem;
-    height: 1.25rem;
-    border: 2px solid #d1d5db;
     border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 1px solid #d1d5db;
+    background-color: white;
     cursor: pointer;
-    position: relative;
+    transition: all 0.2s ease;
 }
-.task-checkbox:checked {
-    background-color: #3b82f6;
-    border-color: #3b82f6;
-}
-.task-checkbox:checked::after {
-    content: '✓';
+.filter-chip.active {
+    background-color: #374151; /* bg-gray-800 */
     color: white;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 0.8rem;
+    border-color: #374151;
 }
 
-/* アクションシート用のスタイル (ここからが追加分) */
-.action-sheet-item, .action-sheet-item-cancel {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  font-size: 1rem;
-  text-align: center;
-  border: none;
-  border-radius: 12px;
-  background-color: white;
-  margin-bottom: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  color: #3b82f6;
+/* コスメカード */
+.inventory-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.action-sheet-item-cancel {
-  background-color: #e5e7eb;
-  color: #374151;
-  font-weight: bold;
+.inventory-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.category-tag {
+    display: inline-block;
+}
+.status-tag {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 9999px;
+}
+.item-menu-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+}
+.item-menu-button:hover {
+    background-color: #f3f4f6; /* bg-gray-100 */
+}
+.store-link-button {
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+.store-link-button:hover {
+    background-color: #EFF6FF; /* bg-blue-50 */
 }
