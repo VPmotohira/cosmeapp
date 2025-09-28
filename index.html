@@ -337,29 +337,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* ===== コスメ一覧 ===== */
-  /* ===== コスメ一覧 ===== */
   function renderInventoryScreen(container) {
     container.innerHTML = `
       <div class="card">
         <h2 class="flex items-center justify-between">
-          <span class="flex items-center gap-2">
-            マイコスメ
-            <span id="inv-count" class="px-2 py-0.5 rounded-full bg-gray-100 text-[11px] text-gray-600">—件</span>
-          </span>
-          <div class="flex items-center gap-2">
-            <div class="relative">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
-              <input
-                id="inv-search"
-                type="search"
-                placeholder="ブランド・商品名・カテゴリ"
-                class="border rounded-full pl-8 pr-3 py-1.5 text-sm w-44 sm:w-72 focus:outline-none focus:ring-2 focus:ring-sky-200"
-              />
-            </div>
-            <button id="inv-add" class="btn-primary text-sm rounded-full px-3 py-1.5">＋ 追加</button>
+          <span>マイコスメ</span>
+          <div class="flex gap-2">
+            <input id="inv-search" type="search" placeholder="検索（ブランド/商品名/カテゴリ）" class="border rounded px-3 py-1 text-sm w-44 sm:w-72" />
+            <button id="inv-add" class="btn-primary text-sm">＋ 追加</button>
           </div>
         </h2>
-        <div class="text-[11px] text-gray-500 mt-1">手持ちコスメの管理</div>
         <div id="inv-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3"></div>
       </div>
 
@@ -379,24 +366,18 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `;
 
-    const grid    = container.querySelector('#inv-grid');
-    const search  = container.querySelector('#inv-search');
-    const addBtn  = container.querySelector('#inv-add');
-    const countEl = container.querySelector('#inv-count');
+    const grid   = container.querySelector('#inv-grid');
+    const search = container.querySelector('#inv-search');
+    const addBtn = container.querySelector('#inv-add');
 
     const render = () => {
       const q = (search.value || '').trim().toLowerCase();
       const ownedIds = new Set(state.products.map(p => p.id));
       const items = masterInventory.filter(m => ownedIds.has(m.id));
-      const filtered = !q ? items : items.filter(m => [m.name, m.category].join(' ').toLowerCase().includes(q));
+      const filtered = !q ? items : items.filter(m => [m.name,m.category].join(' ').toLowerCase().includes(q));
 
-      if (countEl) countEl.textContent = `${filtered.length}件`;
-
-      grid.innerHTML =
-        filtered.map(item => inventoryCardHTML(item)).join('') ||
-        `<div class="col-span-full text-center text-sm text-gray-500 p-6 border border-dashed rounded-xl">
-           登録コスメがありません。<span class="font-medium">「＋ 追加」</span>から登録してください。
-         </div>`;
+      grid.innerHTML = filtered.map(item => inventoryCardHTML(item)).join('')
+        || `<p class="text-sm text-gray-500">登録コスメがありません。「＋ 追加」から登録してください。</p>`;
 
       bindInventoryHandlers(grid);
     };
@@ -423,7 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     addManual.addEventListener('click', () => {
       const name = prompt('商品名'); if(!name) return;
-      const category = prompt(\`カテゴリ（\${CATEGORIES.join(' / ')} など）\`); if(!category) return;
+      const category = prompt(`カテゴリ（${CATEGORIES.join(' / ')} など）`); if(!category) return;
       const id = uuid();
       masterInventory.push({ id, name, category, image:'https://placehold.co/200x200/777/FFFFFF?text=NEW', custom:true });
       state.products.push({ id, wontUse:false, lowStock:false });
@@ -432,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function buildTabs(){
       tabs.innerHTML = CATEGORIES.map(cat => `
-        <button data-tab="\${cat}" class="px-3 py-1 rounded-full border text-sm \${cat===activeCat?'bg-black text-white':'bg-white'}">\${cat}</button>
+        <button data-tab="${cat}" class="px-3 py-1 rounded-full border text-sm ${cat===activeCat?'bg-black text-white':'bg-white'}">${cat}</button>
       `).join('');
       tabs.querySelectorAll('button[data-tab]').forEach(b=>{
         b.addEventListener('click', () => { activeCat=b.dataset.tab; buildTabs(); renderCatalog(); });
@@ -447,12 +428,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const owned = state.products.some(p => p.id === c.id);
         return `
           <div class="flex gap-3 p-2 border rounded-lg">
-            <img src="\${c.image}" class="w-14 h-14 rounded-lg object-cover" />
+            <img src="${c.image}" class="w-14 h-14 rounded-lg object-cover" />
             <div class="flex-1 min-w-0">
-              <div class="text-sm font-medium truncate">\${c.name}</div>
-              <div class="text-xs text-gray-500">\${c.category}</div>
+              <div class="text-sm font-medium truncate">${c.name}</div>
+              <div class="text-xs text-gray-500">${c.category}</div>
             </div>
-            <button class="text-xs \${owned?'btn-secondary opacity-60':'btn-primary'} h-8 self-center" data-add="\${c.id}" \${owned?'disabled':''}>\${owned?'登録済み':'追加'}</button>
+            <button class="text-xs ${owned?'btn-secondary opacity-60':'btn-primary'} h-8 self-center" data-add="${c.id}" ${owned?'disabled':''}>${owned?'登録済み':'追加'}</button>
           </div>`;
       }).join('') || `<p class="text-sm text-gray-500">該当なし</p>`;
 
@@ -474,9 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
   }
 
-
-    
-    function inventoryCardHTML(item){
+  function inventoryCardHTML(item){
     const prodState = state.products.find(p => p.id === item.id) || {};
     const start = prodState.startDate || '';
     const wont  = !!prodState.wontUse;
@@ -484,43 +463,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const grad  = avatarGradient(item.category);
     const initials = brandInitials(item.name);
     return `
-      <div class="group rounded-xl p-3 border border-gray-100 bg-white hover:shadow-md hover:-translate-y-0.5 transition">
-        <div class="flex gap-3 items-start">
-          <div class="w-12 h-12 rounded-lg grid place-items-center text-white font-semibold shadow" style="background:${grad}">${initials}</div>
+      <div class="rounded-2xl p-3 border border-gray-100 shadow-sm bg-white">
+        <div class="flex gap-3">
+          <div class="w-14 h-14 rounded-xl grid place-items-center text-white font-semibold shadow" style="background:${grad}">${initials}</div>
           <div class="flex-1 min-w-0">
-            <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0">
-                <p class="font-medium text-sm leading-tight truncate" title="${item.name}">${item.name}</p>
-                <p class="text-[11px] text-gray-500">${item.category}</p>
-              </div>
-              <div class="flex gap-1 flex-wrap justify-end">
-                ${wont?`<span class="px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700">🚫もう使わない</span>`:''}
-                ${low?`<span class="px-2 py-0.5 text-[10px] rounded-full bg-sky-100 text-sky-700">🔥なくなりそう</span>`:''}
-              </div>
-            </div>
-
-            <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
-              <label class="col-span-2">
-                <span class="text-[11px] text-gray-500">開始日（任意）</span>
-                <input type="date" value="${start}" data-pid="${item.id}" class="mt-1 w-full h-8 border rounded-lg px-2 text-sm"/>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" data-low="${item.id}" ${low?'checked':''}/> なくなりそう
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" data-wont="${item.id}" ${wont?'checked':''}/> もう使わない
-              </label>
-            </div>
-
-            ${item.custom?`<div class="mt-2 text-right">
-              <button class="px-2 py-1 border rounded text-xs hover:bg-gray-50" data-del="${item.id}">削除</button>
-            </div>`:''}
+            <p class="font-bold text-sm leading-tight truncate" title="${item.name}">${item.name}</p>
+            <p class="text-[11px] text-gray-500">${item.category}</p>
+          </div>
+          <div class="flex gap-1 flex-wrap justify-end">
+            ${wont?`<span class="px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700">🚫もう使わない</span>`:''}
+            ${low?`<span class="px-2 py-0.5 text-[10px] rounded-full bg-sky-100 text-sky-700">🔥なくなりそう</span>`:''}
           </div>
         </div>
+        <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <label class="col-span-2">
+            <span class="text-gray-500">開始日（任意）</span>
+            <input type="date" value="${start}" data-pid="${item.id}" class="mt-1 w-full border rounded px-2 py-1 text-sm"/>
+          </label>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" data-low="${item.id}" ${low?'checked':''}/> なくなりそう
+          </label>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" data-wont="${item.id}" ${wont?'checked':''}/> もう使わない
+          </label>
+        </div>
+        ${item.custom?`<div class="mt-2 text-right"><button class="px-2 py-1 border rounded text-xs" data-del="${item.id}">削除</button></div>`:''}
       </div>
     `;
   }
-
 
   function bindInventoryHandlers(grid){
     grid.querySelectorAll('input[type="date"]').forEach(inp=>{
@@ -606,8 +576,10 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 
+
 </body>
 </html>
+
 
 
 
