@@ -1,23 +1,29 @@
 // アプリケーションの状態(state)を管理します
 
-// ローカルストレージに保存する際のキー
 const LS_KEY = 'skincare.app.v1';
 
-// --- 関数の定義 ---
-
-// 状態を初期化する関数
 function initState() {
+    // デモ用に、いくつかのアイテムに仮の開始日を設定
+    const initialProducts = [
+        { id: 'item1', wontUse: false, lowStock: false, startDate: '2025-09-15' }, // シュウ ウエムラ
+        { id: 'item2', wontUse: false, lowStock: false, startDate: '2025-08-20' }, // B.A ウォッシュ
+        { id: 'item4', wontUse: false, lowStock: false, startDate: '2025-09-01' }, // オルビスユー
+        { id: 'item6', wontUse: false, lowStock: false, startDate: '2025-07-10' }, // SK-II
+        { id: 'item7', wontUse: false, lowStock: false }, // アネッサ
+        { id: 'item3', wontUse: false, lowStock: false }, // スイサイ
+        { id: 'item5', wontUse: false, lowStock: false }, // ランコム
+    ];
+
     return {
         currentScreen: 'main',
         dailyConditions: { skin: 'normal', makeup: 'no', outing: 'no' },
-        products: [], // inventory.jsで管理
+        products: initialProducts, // 上で定義した仮データを使用
         savedRecipes: [],
         history: [],
-        today: null // main.jsで初期化時に生成
+        today: null
     };
 }
 
-// 状態をローカルストレージに保存する関数
 export function saveState() {
     try {
         localStorage.setItem(LS_KEY, JSON.stringify(state));
@@ -26,22 +32,15 @@ export function saveState() {
     }
 }
 
-// 状態をローカルストレージから読み込む関数
 function loadState() {
     try {
         const savedState = localStorage.getItem(LS_KEY);
-        if (savedState) {
-            return JSON.parse(savedState);
-        }
-        return null;
+        // 簡単なバージョンチェックやマイグレーションもここで行える
+        return savedState ? JSON.parse(savedState) : null;
     } catch (e) {
         console.error("Failed to load state:", e);
         return null;
     }
 }
 
-// --- 本体 ---
-
-// アプリケーションのメインとなる状態オブジェクト
-// 起動時にローカルストレージから復元するか、なければ初期化する
 export let state = loadState() || initState();
