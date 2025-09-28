@@ -3,38 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>美肌ロジック</title>
+    <title>Cosme Recipe App</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Playfair+Display:wght@500;600&family=Caveat&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
-<body>
-    <div id="app-container">
-        <header>
-            <h1 id="header-title">今日のレシピ</h1>
-            <p id="current-date"></p>
+<body class="bg-gray-50">
+
+    <div id="app-container" class="max-w-md mx-auto min-h-screen flex flex-col">
+        
+        <header class="bg-white p-4 shadow-sm sticky top-0 z-10">
+            <h1 id="header-title" class="text-xl font-bold text-center text-gray-700"></h1>
+            <p id="current-date" class="text-center text-sm text-gray-500"></p>
         </header>
-        <main>
-            <!-- 各画面のコンテナ（中身はJSで動的に生成） -->
-            <div id="main-screen" class="screen active"></div>
-            <div id="schedule-screen" class="screen"></div>
-            <div id="inventory-screen" class="screen"></div>
-            <div id="diary-screen" class="screen"></div>
-            <div id="account-screen" class="screen"></div>
-        </main>
-        <nav>
-             <button data-screen="main" class="active"><span class="nav-icon">🏠</span>ホーム</button>
-            <button data-screen="schedule"><span class="nav-icon">🗓️</span>スケジュール</button>
-            <button data-screen="inventory"><span class="nav-icon">🧴</span>コスメ</button>
-            <button data-screen="diary"><span class="nav-icon">📖</span>ダイアリー</button>
-            <button data-screen="account"><span class="nav-icon">👤</span>アカウント</button>
+
+        <main class="flex-grow p-4">
+            </main>
+
+        <nav class="bg-white shadow-t sticky bottom-0 grid grid-cols-5 gap-2 p-2">
+            <button data-screen="main" class="nav-button active">
+                <i class="fas fa-home"></i>
+                <span class="text-xs">ホーム</span>
+            </button>
+            <button data-screen="schedule" class="nav-button">
+                <i class="fas fa-calendar-alt"></i>
+                <span class="text-xs">スケジュール</span>
+            </button>
+            <button data-screen="inventory" class="nav-button">
+                <i class="fas fa-box"></i>
+                <span class="text-xs">コスメ一覧</span>
+            </button>
+            <button data-screen="diary" class="nav-button">
+                <i class="fas fa-book"></i>
+                <span class="text-xs">ダイアリー</span>
+            </button>
+            <button data-screen="account" class="nav-button">
+                <i class="fas fa-user"></i>
+                <span class="text-xs">アカウント</span>
+            </button>
         </nav>
-        <div id="modal-container"></div>
+
     </div>
 
-    <!-- JavaScript Files -->
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
