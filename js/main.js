@@ -1,6 +1,4 @@
-console.log('調査開始: main.jsが実行された時点でnav要素は存在するか？ ->', document.querySelector('nav'));
-
-
+// 調査コードは解決したので削除しました
 import renderMainScreen from './screen/home.js';
 import renderScheduleScreen from './screen/schedule.js';
 import renderInventoryScreen from './screen/inventory.js';
@@ -22,7 +20,7 @@ function initialize() {
     displayDate(dom.dateElement);
     dom.nav.addEventListener('click', (e) => {
         const button = e.target.closest('button');
-        if (button) {
+        if (button && button.dataset.screen) {
             state.currentScreen = button.dataset.screen;
             renderCurrentScreen();
         }
@@ -32,23 +30,34 @@ function initialize() {
 
 // 画面管理（ルーター）
 function renderCurrentScreen() {
+    // --- ここからが改良部分 ---
+    // もし記憶されている画面名がおかしかったら、強制的に 'main' に戻す
+    let targetScreen = state.currentScreen;
+    let activeButton = document.querySelector(`nav button[data-screen="${targetScreen}"]`);
+
+    if (!activeButton) {
+        console.warn(`無効な画面[${targetScreen}]が記憶されていました。ホーム画面に戻ります。`);
+        targetScreen = 'main';
+        state.currentScreen = 'main';
+        activeButton = document.querySelector(`nav button[data-screen="main"]`);
+    }
+    // --- 改良部分ここまで ---
+
     dom.main.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     dom.nav.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-    
-    let activeScreen = document.getElementById(`${state.currentScreen}-screen`);
-    if (!activeScreen) {
-        activeScreen = document.createElement('div');
-        activeScreen.id = `${state.currentScreen}-screen`;
-        activeScreen.className = 'screen';
-        dom.main.appendChild(activeScreen);
+
+    let activeScreenElement = document.getElementById(`${targetScreen}-screen`);
+    if (!activeScreenElement) {
+        activeScreenElement = document.createElement('div');
+        activeScreenElement.id = `${targetScreen}-screen`;
+        activeScreenElement.className = 'screen';
+        dom.main.appendChild(activeScreenElement);
     }
-    
-    const activeButton = document.querySelector(`nav button[data-screen="${state.currentScreen}"]`);
-    
-    activeScreen.classList.add('active');
-    activeButton.classList.add('active');
-    
-    dom.headerTitle.innerHTML = { main: `今日の<span class="accent">レシピ</span>`, schedule: 'スケジュール', inventory: 'コスメ一覧', diary: 'ダイアリー', account: 'アカウント' }[state.currentScreen];
+
+    activeScreenElement.classList.add('active');
+    activeButton.classList.add('active'); // これでエラーは起きないはず
+
+    dom.headerTitle.innerHTML = { main: `今日の<span class="accent">レシピ</span>`, schedule: 'スケジュール', inventory: 'コスメ一覧', diary: 'ダイアリー', account: 'アカウント' }[targetScreen];
 
     const renderFunction = {
         main: renderMainScreen,
@@ -56,11 +65,12 @@ function renderCurrentScreen() {
         inventory: renderInventoryScreen,
         diary: renderDiaryScreen,
         account: renderAccountScreen,
-    }[state.currentScreen];
+    }[targetScreen];
 
-    renderFunction(activeScreen);
+    if (renderFunction) {
+        renderFunction(activeScreenElement);
+    }
 }
 
 // アプリケーション開始
 initialize();
-
