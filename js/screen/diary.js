@@ -1,20 +1,12 @@
-import { pastRecipes, masterInventory } from '../data.js';
+// diary.js
 
-export default function renderDiaryScreen(container) {
-    const diaryHTML = pastRecipes.map(recipe => {
-        const itemImages = recipe.items.map(itemId => {
-            const item = masterInventory.find(i => i.id === itemId);
-            return `<img src="${item.image}" class="w-10 h-10 rounded-full object-cover border-2 border-white -ml-2 first:ml-0">`;
-        }).join('');
-        return `
-            <div class="bg-white rounded-2xl shadow-lg p-5 mb-6">
-                <p class="text-sm font-semibold text-gray-400 mb-2">${recipe.date}</p>
-                <h3 class="text-xl font-bold" style="color: var(--ink-primary);">肌モード: ${recipe.mode}</h3>
-                <div class="border-t border-gray-100 pt-3 mt-3">
-                    <p class="text-xs font-bold text-gray-400 mb-2">${recipe.routine}</p>
-                    <div class="flex items-center pl-2">${itemImages}</div>
-                </div>
-            </div>`;
-    }).join('');
-    container.innerHTML = `<div>${diaryHTML}</div>`;
+function renderDiaryScreen(container) {
+    container.innerHTML = `
+        <div class="card bg-white p-5 rounded-lg shadow">
+            <h2 class="text-xl font-bold mb-3">ダイアリー</h2>
+            <p class="text-sm text-gray-500">開発中です</p>
+        </div>
+    `;
 }
+
+export default renderDiaryScreen;
