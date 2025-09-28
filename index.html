@@ -461,37 +461,62 @@ function inventoryCardHTML(item){
   const start = prodState.startDate || '';
   const wont  = !!prodState.wontUse;
   const low   = !!prodState.lowStock;
-  const grad  = avatarGradient(item.category);
-  const initials = brandInitials(item.name);
 
-  // 開始日からの日数（表示のみ）
-  let sinceHtml = '';
-  if (start) {
-    const days = Math.floor(
-      (new Date().setHours(0,0,0,0) - new Date(start).setHours(0,0,0,0)) / (1000*60*60*24)
-    );
-    if (!isNaN(days) && days >= 0) {
-      sinceHtml = `<span class="ml-2 text-[10px] text-gray-500 border rounded px-1">開始から${days}日</span>`;
-    }
-  }
+  // カテゴリ別アクセント（枠線色・ピル背景色）
+  const accentsMap = {
+    'クレンジング': { border:'#C7AE97', pill:'#F5EDE5' },
+    '洗顔':         { border:'#6B7280', pill:'#EEF2F7' },
+    '酵素洗顔':     { border:'#9AE6E6', pill:'#ECFEFF' },
+    '化粧水':       { border:'#93C5FD', pill:'#EFF6FF' },
+    '美容液':       { border:'#6B7280', pill:'#F3F4F6' },
+    '乳液':         { border:'#F59E9E', pill:'#FEF2F2' },
+    '日焼け止め':   { border:'#FDE68A', pill:'#FFFBEB' },
+  };
+  const accents = accentsMap[item.category] || { border:'#E5E7EB', pill:'#F3F4F6' };
+
+  // サムネイルは「画像があれば画像優先」、なければフォールバック
+  const thumb = item.image
+    ? `<img src="${item.image}" alt="${item.name}" class="w-full h-full object-cover">`
+    : `<div class="w-full h-full grid place-items-center text-[10px] text-gray-500">NO IMG</div>`;
 
   return `
-    <div class="group rounded-2xl p-3 border border-gray-100 bg-white/90 shadow-sm hover:shadow-md hover:border-gray-200 transition">
-      <!-- ヘッダー -->
-      <div class="flex items-start gap-3">
-        <div class="w-14 h-14 rounded-xl grid place-items-center text-white font-semibold shadow"
-             style="background:${grad}">${initials}</div>
+    <div class="rounded-2xl p-3 shadow-sm bg-white border" style="border-color:${accents.border}">
+      <div class="flex gap-3">
+        <div class="w-14 h-14 rounded-lg overflow-hidden ring-1 bg-gray-100" style="ring-color:${accents.border}">
+          ${thumb}
+        </div>
 
         <div class="flex-1 min-w-0">
-          <p class="font-bold text-sm leading-tight truncate" title="${item.name}">
-            ${item.name}${sinceHtml}
-          </p>
+          <p class="font-bold text-sm leading-tight truncate" title="${item.name}">${item.name}</p>
           <div class="mt-1 flex items-center gap-1">
-            <span class="px-2 py-0.5 text-[10px] rounded-full border border-gray-200 text-gray-600 bg-white/70">
-              ${item.category}
-            </span>
+            <span class="px-2 py-0.5 text-[10px] rounded-full" style="background:${accents.pill}; color:#374151">${item.category}</span>
           </div>
         </div>
+
+        <div class="flex gap-1 flex-wrap justify-end">
+          ${wont?`<span class="px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700">🚫もう使わない</span>`:''}
+          ${low?`<span class="px-2 py-0.5 text-[10px] rounded-full bg-sky-100 text-sky-700">🔥なくなりそう</span>`:''}
+        </div>
+      </div>
+
+      <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <label class="col-span-2">
+          <span class="text-gray-500">開始日（任意）</span>
+          <input type="date" value="${start}" data-pid="${item.id}" class="mt-1 w-full border rounded px-2 py-1 text-sm"/>
+        </label>
+        <label class="flex items-center gap-2">
+          <input type="checkbox" data-low="${item.id}" ${low?'checked':''}/> なくなりそう
+        </label>
+        <label class="flex items-center gap-2">
+          <input type="checkbox" data-wont="${item.id}" ${wont?'checked':''}/> もう使わない
+        </label>
+      </div>
+
+      ${item.custom?`<div class="mt-2 text-right"><button class="px-2 py-1 border rounded text-xs" data-del="${item.id}">削除</button></div>`:''}
+    </div>
+  `;
+}
+
 
         <div class="flex gap-1 flex-wrap justify-end">
           ${wont ? `<span class="px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700">🚫 もう使わない</span>` : ''}
@@ -617,6 +642,7 @@ function inventoryCardHTML(item){
 
 </body>
 </html>
+
 
 
 
