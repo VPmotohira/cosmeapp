@@ -1,15 +1,10 @@
-import renderMainScreen from './screens/home.js';
-import renderScheduleScreen from './screens/schedule.js';
-import renderInventoryScreen from './screens/inventory.js';
-import renderDiaryScreen from './screens/diary.js';
-import renderAccountScreen from './screens/account.js';
-
-// 状態管理
-export const state = {
-    currentScreen: 'main',
-    dailyConditions: JSON.parse(localStorage.getItem('dailyConditions')) || { skin: 'normal', makeup: 'no', outing: 'no', details: [] },
-    skinHistory: { '2025-9-22': 'normal', '2025-9-23': 'bad', '2025-9-24': 'normal', '2025-9-25': 'normal', '2025-9-26': 'good', '2025-9-27': 'good', '2025-9-28': 'normal' }
-};
+import renderMainScreen from './screen/home.js';
+import renderScheduleScreen from './screen/schedule.js';
+import renderInventoryScreen from './screen/inventory.js';
+import renderDiaryScreen from './screen/diary.js';
+import renderAccountScreen from './screen/account.js';
+import { displayDate } from './utils.js';
+import { state } from './state.js';
 
 // DOM要素
 const dom = {
@@ -21,7 +16,7 @@ const dom = {
 
 // 初期化
 function initialize() {
-    displayDate();
+    displayDate(dom.dateElement);
     dom.nav.addEventListener('click', (e) => {
         const button = e.target.closest('button');
         if (button) {
@@ -38,6 +33,13 @@ function renderCurrentScreen() {
     dom.nav.querySelectorAll('button').forEach(b => b.classList.remove('active'));
     
     let activeScreen = document.getElementById(`${state.currentScreen}-screen`);
+    if (!activeScreen) {
+        activeScreen = document.createElement('div');
+        activeScreen.id = `${state.currentScreen}-screen`;
+        activeScreen.className = 'screen';
+        dom.main.appendChild(activeScreen);
+    }
+    
     const activeButton = document.querySelector(`nav button[data-screen="${state.currentScreen}"]`);
     
     activeScreen.classList.add('active');
@@ -56,10 +58,6 @@ function renderCurrentScreen() {
     renderFunction(activeScreen);
 }
 
-function displayDate() {
-    const today = new Date();
-    dom.dateElement.textContent = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
-}
-
 // アプリケーション開始
 initialize();
+
