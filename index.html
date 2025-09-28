@@ -85,8 +85,10 @@
 
 <script>
 /**
- * 美肌ロジック – 統合版
- * - ホーム：AM/PMごとに「全て完了」「このレシピをシェア」復活
+ * 美肌ロジック – フル統合版
+ * - ホーム：
+ *   AM/PMごとに「全て完了」「このレシピをシェア」
+ *   レシピ操作（過去レシピ引用・アイテム追加）を復活
  * - ルール：外出→SPF、メイク→クレンジング（wontUse除外）
  * - コスメ一覧：カテゴリで探すモーダル＋追加、検索絞り込み、開始日、なくなりそう/もう使わない
  * - 悩み連動・シェア機能（一覧画面）はMVPでは未実装
@@ -123,13 +125,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ===== 状態 ===== */
   const LS_KEY = 'skincare.app.v1';
-  /**
-   * state = {
-   *   dailyConditions: { skin, makeup, outing },
-   *   products: [{ id, startDate?, wontUse?:boolean, lowStock?:boolean }],
-   *   savedRecipes?:[], history?:[], today?: Day
-   * }
-   */
   let state = loadState() || initState();
 
   function initState(){
@@ -213,11 +208,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const { amMinutes, pmMinutes } = calcDurations(state.today);
     wrap.innerHTML =
       createSection('☀️ 朝のレシピ', state.today.am, amMinutes, 'AM') +
-      createSection('🌙 夜のレシピ', state.today.pm, pmMinutes, 'PM');
+      createSection('🌙 夜のレシピ', state.today.pm, pmMinutes, 'PM') +
+      `
+      <div class="card p-4">
+        <h3 class="font-bold text-sm mb-2">レシピ操作</h3>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="btn-secondary text-sm" id="btn-quote-recipe">過去レシピ引用</button>
+          <button class="btn-primary text-sm" id="btn-add-step">アイテムを追加</button>
+        </div>
+      </div>
+      `;
 
-    // イベント束ね
+    // 既存イベント
     wrap.querySelectorAll('[data-action="complete-all"]').forEach(b => b.addEventListener('click', () => onCompleteAll(b.dataset.time)));
     wrap.querySelectorAll('[data-action="share-section"]').forEach(b => b.addEventListener('click', () => onShareSection(b.dataset.time)));
+
+    // 新イベント
+    wrap.querySelector('#btn-quote-recipe')?.addEventListener('click', openQuoteModal);
+    wrap.querySelector('#btn-add-step')?.addEventListener('click', openAddItemModal);
   }
 
   function createSection(title, steps, minutes, tod){
@@ -234,7 +242,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </li>`;
     }).join('') || `<li class="text-sm text-gray-400">ステップなし</li>`;
 
-    // ← ここで各セクションの「全て完了」「このレシピをシェア」を復活
     return `
       <div class="card p-5 mb-4">
         <div class="flex items-center justify-between">
@@ -257,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function onShareSection(time){
     const steps = (time === 'AM' ? state.today.am : state.today.pm).filter(s => !s.hidden);
     const lines = steps.map(s => {
-      const p = masterInventory.find(m => m.id === s.productId);
+      const p = masterInventory.find(m=>m.id===s.productId);
       const label = p ? `${p.category}：${p.name}` : s.stepType;
       return `・${label}`;
     }).join('\n');
@@ -265,6 +272,39 @@ document.addEventListener('DOMContentLoaded', () => {
     if (navigator.share) { navigator.share({ text }).catch(()=>{}); }
     else { navigator.clipboard.writeText(text).then(()=>alert('レシピをコピーしました')); }
   }
+
+  /* ===== 新機能：過去レシピ引用 / アイテム追加 ===== */
+  function openQuoteModal(){
+    if (!state.history.length) { alert('過去レシピがありません'); return; }
+    const html = state.history.slice(0,5).map(h =>
+      `<button class="block w-full text-left px-3 py-2 border-b" data-date="${h.createdAt}">
+        ${h.createdAt.slice(0,10)} のレシピ
+      </button>`).join('');
+    showModal(`<h3 class="font-semibold mb-2">過去レシピ引用</h3>${html}`, (btn)=>{
+      const h = state.history.find(x=>x.createdAt===btn.dataset.date);
+      if(!h) return;
+      state.today.am = JSON.parse(JSON.stringify(h.am));
+      state.today.pm = JSON.parse(JSON.stringify(h.pm));
+      saveState(); renderManual(); closeModal();
+    });
+  }
+
+  function openAddItemModal(){
+    // inventory のモーダルをそのまま流用
+    document.querySelector('#inventory-screen #inv-add')?.click();
+  }
+
+  function showModal(innerHTML, onSelect){
+    const modal = document.createElement('div');
+    modal.className = "fixed inset-0 bg-black/40 flex items-center justify-center z-50";
+    modal.innerHTML = `<div class="bg-white rounded-lg p-4 w-80">${innerHTML}<div class="mt-3 text-right"><button id="modal-close" class="text-sm text-gray-500">閉じる</button></div></div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e)=>{
+      if(e.target.id==='modal-close' || e.target===modal){ modal.remove(); }
+      if(e.target.dataset.date){ onSelect(e.target); }
+    });
+  }
+  function closeModal(){ document.querySelectorAll('.fixed.inset-0.bg-black\\/40').forEach(m=>m.remove()); }
 
   /* ===== ルール（wontUse除外） ===== */
   function makeTodayFromRules(){
@@ -316,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveState();
   }
 
-  /* ===== コスメ一覧（カテゴリ追加／lowStock・wontUse） ===== */
+  /* ===== コスメ一覧 ===== */
   function renderInventoryScreen(container) {
     container.innerHTML = `
       <div class="card">
@@ -489,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
       chk.addEventListener('change', ()=>{
         const rec = state.products.find(p => p.id === chk.dataset.wont);
         if (rec) rec.wontUse = chk.checked; saveState();
-        const card = chk.closest('.rounded-2xl'); if(card) card.querySelector('.text-[10px].bg-amber-100') || (chk.checked && (card.querySelector('.flex.gap-1').insertAdjacentHTML('beforeend','<span class="px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700">🚫もう使わない</span>')));
+        const card = chk.closest('.rounded-2xl'); if(card) card.querySelector('.text-[10px].bg-amber-100') || (chk.checked && (card.querySelector('.flex.gap-1').insertAdjacentHTML('beforeend','<span class="px-2 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700">🚫もう使わない</span>'))); 
         if(!chk.checked && card){ const tag = card.querySelector('.bg-amber-100'); tag && tag.remove(); }
       });
     });
@@ -497,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
       chk.addEventListener('change', ()=>{
         const rec = state.products.find(p => p.id === chk.dataset.low);
         if (rec) rec.lowStock = chk.checked; saveState();
-        const card = chk.closest('.rounded-2xl'); if(card) card.querySelector('.text-[10px].bg-sky-100') || (chk.checked && (card.querySelector('.flex.gap-1').insertAdjacentHTML('beforeend','<span class="px-2 py-0.5 text-[10px] rounded-full bg-sky-100 text-sky-700">🔥なくなりそう</span>')));
+        const card = chk.closest('.rounded-2xl'); if(card) card.querySelector('.text-[10px].bg-sky-100') || (chk.checked && (card.querySelector('.flex.gap-1').insertAdjacentHTML('beforeend','<span class="px-2 py-0.5 text-[10px] rounded-full bg-sky-100 text-sky-700">🔥なくなりそう</span>'))); 
         if(!chk.checked && card){ const tag = card.querySelector('.bg-sky-100'); tag && tag.remove(); }
       });
     });
@@ -547,6 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
 
 
 
