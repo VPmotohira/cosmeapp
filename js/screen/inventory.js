@@ -4,8 +4,7 @@ import { uuid } from '../data.js';
 
 function renderInventoryScreen(container) {
   container.innerHTML = `
-    <div class="p-1">
-      <div class="flex items-center justify-between mb-4">
+    <div class="p-1 pb-24"> <div class="flex items-center justify-between mb-4">
         <div class="flex gap-2">
           <button class="filter-chip active" data-filter="all">全て</button>
           <button class="filter-chip" data-filter="lowStock">なくなりそう</button>
@@ -18,7 +17,7 @@ function renderInventoryScreen(container) {
       </div>
       <div id="inv-grid" class="space-y-3"></div>
     </div>
-    <button id="inv-add-fab" class="fixed bottom-20 right-5 bg-blue-500 text-white w-14 h-14 rounded-full shadow-lg text-2xl grid place-items-center z-20">＋</button>
+    <button id="inv-add-fab" class="fixed bottom-24 right-5 bg-blue-500 text-white w-14 h-14 rounded-full shadow-lg text-2xl grid place-items-center z-20">＋</button>
   `;
 
   const grid = container.querySelector('#inv-grid');
@@ -44,6 +43,18 @@ function inventoryCardHTML(item) {
   const productState = state.products.find(p => p.id === item.id) || {};
   const categoryColor = getCategoryColor(item.category);
 
+  // 利用日数を計算
+  let daysUsedBadge = '';
+  if (productState && productState.startDate) {
+    const startDate = new Date(productState.startDate);
+    const today = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    const diffTime = Math.abs(today - startDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    daysUsedBadge = `<span class="status-tag bg-sky-100 text-sky-800">${diffDays}日目</span>`;
+  }
+
   return `
     <div class="inventory-card card bg-white rounded-xl shadow-sm p-3 flex gap-4">
       <div class="w-20 h-20 bg-gray-100 rounded-lg grid place-items-center flex-shrink-0">
@@ -59,7 +70,8 @@ function inventoryCardHTML(item) {
           </div>
           <button class="item-menu-button" data-id="${item.id}"><i class="fas fa-ellipsis-v text-gray-400"></i></button>
         </div>
-        <div class="flex gap-2 mt-1">
+        <div class="flex gap-2 mt-1 flex-wrap">
+          ${daysUsedBadge}
           ${productState.lowStock ? `<span class="status-tag bg-red-100 text-red-800">なくなりそう</span>` : ''}
           ${productState.wontUse ? `<span class="status-tag bg-gray-200 text-gray-600">もう使わない</span>` : ''}
         </div>
